@@ -1387,6 +1387,7 @@ function openPrintSheet(){ document.getElementById('print-sheet').classList.add(
 function closePrintSheet(){ document.getElementById('print-sheet').classList.remove('open'); }
 
 let _cachedPdfBlob = null;
+let _cachedOffertePdfBlob = null;
 let _pdfTimer = null;
 
 function loadScript(src){
@@ -1412,6 +1413,7 @@ function schedulePdfCache(){
   clearTimeout(_pdfTimer);
   _pdfTimer = setTimeout(async () => {
     try { _cachedPdfBlob = await generatePDFBlob(); } catch(e) { _cachedPdfBlob = null; }
+    try { _cachedOffertePdfBlob = await generateOffertePDFBlob(); } catch(e) { _cachedOffertePdfBlob = null; }
   }, 800);
 }
 
@@ -2221,64 +2223,54 @@ async function sendEmail(type){
   const naamFile=(k.naam||'').replace(/[^a-z0-9]/gi,'_');
   const datumFile=l.uitvoerdatum||new Date().toISOString().slice(0,10);
 
-  // For offerte and factuur: generate PDF and share with attachment
-  if(type==='offerte' || type==='factuur'){
-    showToast('PDF aanmaken...');
-    await new Promise(r=>setTimeout(r,0));
+  // Build email body for each type
+  let subject='', body='', blob=null, filename='';
 
-    let blob, filename, subject, intro;
-    if(type==='offerte'){
-      blob = await generateOffertePDFBlob();
-      filename = 'Offerte_'+naamFile+'_'+datumFile+'.pdf';
-      subject = 'Offerte ontruiming '+adres;
-      intro = 'Geachte '+naam+',\n\nBijgaand ontvangt u onze vrijblijvende offerte'+(adres?' voor de ontruiming aan '+adres:'')+(datum?' op '+datum:'')+'. Het totaalbedrag bedraagt '+ef(T.tot)+' incl. BTW.\n\nGraag ontvangen wij uw akkoord.\n\nMet hartelijke groet,\nFrank van Haaren, Robin van de Water\nOntruimend Goed\n'+BEDRIJF.tel;
-    } else {
-      // Init factuur state
-      if(!S.factuur.nummer) S.factuur.nummer=getNextFactuurNummer();
-      if(!S.factuur.datum) S.factuur.datum=new Date().toISOString().slice(0,10);
-      if(!S.factuur.projectnaam&&S.klant.adres) S.factuur.projectnaam=S.klant.adres;
-      if(!S.factuur.aanhef&&S.klant.naam) S.factuur.aanhef='t.a.v. '+S.klant.naam;
-      if(!S.factuur.regels||S.factuur.regels.length===0) S.factuur.regels=buildVasteRegels();
-      S.factuur.regels=S.factuur.regels.filter(r=>!r.omschrijving.toLowerCase().includes('asbest'));
-      blob = await generatePDFBlob();
-      filename = 'Factuur_'+(S.factuur.nummer||'').replace('/','_')+'_'+naamFile+'.pdf';
-      subject = 'Factuur ontruiming '+adres;
-      intro = 'Geachte '+naam+',\n\nBijgaand ontvangt u de factuur'+(adres?' voor de ontruiming aan '+adres:'')+(datum?' uitgevoerd op '+datum:'')+'. Factuurbedrag: '+ef(T.tot)+' incl. BTW.\n\nIBAN: '+BEDRIJF.iban+'\nGelieve binnen 15 dagen te betalen.\n\nMet hartelijke groet,\nFrank van Haaren, Robin van de Water\nOntruimend Goed\n'+BEDRIJF.tel;
-    }
+  if(type==='offerte'){
+    subject='Offerte ontruiming '+adres;
+    body=['Geachte '+naam+',','','Bijgaand ontvangt u onze vrijblijvende offerte voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' op '+datum:'')+'.','','Totaalbedrag: '+ef(T.tot)+' incl. BTW.','','Graag ontvangen wij uw akkoord.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
+    blob = _cachedOffertePdfBlob;
+    filename = 'Offerte_'+naamFile+'_'+datumFile+'.pdf';
 
-    if(!blob){ showToast('PDF aanmaken mislukt'); return; }
-    const file=new File([blob],filename,{type:'application/pdf'});
+  } else if(type==='factuur'){
+    // Init factuur state
+    if(!S.factuur.nummer) S.factuur.nummer=getNextFactuurNummer();
+    if(!S.factuur.datum) S.factuur.datum=new Date().toISOString().slice(0,10);
+    if(!S.factuur.projectnaam&&k.adres) S.factuur.projectnaam=k.adres;
+    if(!S.factuur.aanhef&&k.naam) S.factuur.aanhef='t.a.v. '+k.naam;
+    if(!S.factuur.regels||S.factuur.regels.length===0) S.factuur.regels=buildVasteRegels();
+    S.factuur.regels=S.factuur.regels.filter(r=>!r.omschrijving.toLowerCase().includes('asbest'));
+    // Save factuurMeta
+    const fT=calcFactuurTotals();
+    S.factuurMeta={nummer:S.factuur.nummer,datum:S.factuur.datum,bedrag:fT.totaal,betaald:false};
+    scheduleAutoSave();
+    subject='Factuur ontruiming '+adres;
+    body=['Geachte '+naam+',','','Bijgaand ontvangt u de factuur voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' uitgevoerd op '+datum:'')+'.','','Factuurbedrag: '+ef(fT.totaal)+' incl. BTW.','IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Gelieve binnen 15 dagen te betalen.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
+    blob = _cachedPdfBlob;
+    filename = 'Factuur_'+(S.factuur.nummer||'').replace('/','_')+'_'+naamFile+'.pdf';
 
-    if(navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({files:[file],title:subject,text:intro}).catch(e=>{
-        if(e.name!=='AbortError') showToast('Deelfunctie niet beschikbaar');
-      });
-    } else {
-      // Fallback: download PDF + open mailto
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download=filename;
-      document.body.appendChild(a); a.click();
-      setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
-      const to=encodeURIComponent(k.email||'');
-      const sub=encodeURIComponent(subject);
-      const bod=encodeURIComponent(intro);
-      setTimeout(()=>{ window.location.href=`mailto:${to}?subject=${sub}&body=${bod}`; },800);
-      showToast('PDF opgeslagen — voeg toe als bijlage');
-    }
-    return;
-  }
-
-  // Bevestiging + herinnering: plain mailto, no PDF
-  let subject='', body='';
-  if(type==='bevestiging'){
+  } else if(type==='bevestiging'){
     subject='Bevestiging opdracht ontruiming '+adres;
     body=['Geachte '+naam+',','','Hierbij bevestigen wij de opdracht voor de ontruiming van'+(adres?' '+adres:'')+(datum?' op '+datum:'')+'.','','Wij komen op de afgesproken datum bij u langs.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
+
   } else if(type==='herinnering'){
     subject='Betalingsherinnering factuur ontruiming '+adres;
-    body=['Geachte '+naam+',','','Wij herinneren u vriendelijk aan de openstaande factuur'+(adres?' voor de ontruiming van '+adres:'')+'.','','Openstaand bedrag: '+ef(T.tot),'IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Graag het bedrag binnen 7 dagen overmaken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel].join('\n');
+    body=['Geachte '+naam+',','','Wij herinneren u vriendelijk aan de openstaande factuur'+(adres?' voor de ontruiming van '+adres:'')+'.','','Openstaand bedrag: '+ef(T.tot),'IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Graag binnen 7 dagen overmaken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel].join('\n');
   }
-  const to=encodeURIComponent(k.email||'');
-  window.location.href=`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  // For offerte/factuur: share PDF as attachment via native share sheet
+  if(blob && (type==='offerte'||type==='factuur')){
+    const file=new File([blob], filename, {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title:subject, text:body}).catch(e=>{
+        if(e.name!=='AbortError') openMailChoice({to:k.email||'', subject, body});
+      });
+      return;
+    }
+  }
+
+  // No blob or file share not supported: open mail choice (Gmail / other)
+  openMailChoice({to:k.email||'', subject, body});
 }
 
 // Extract PDF generation logic so it can be reused
