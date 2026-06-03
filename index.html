@@ -2056,7 +2056,7 @@ function openWithOtherMail(){
   closeMailChoice();
   if(!_pendingMail) return;
   const {to, subject, body} = _pendingMail;
-  window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 /* ---- FACTUREN OVERZICHT ---- */
