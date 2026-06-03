@@ -2061,33 +2061,151 @@ function renderPlanning(){
 function openEmailSheet(){ document.getElementById('email-sheet').classList.add('open'); }
 function closeEmailSheet(){ document.getElementById('email-sheet').classList.remove('open'); }
 
-function sendEmail(type){
+async function sendEmail(type){
   const k=S.klant, l=S.logistiek, T=calcTotalen();
   const ef=n=>'\u20ac\u00a0'+n.toFixed(2).replace('.',',');
   const fmtD=d=>{ if(!d) return ''; const [y,m,day]=d.split('-'); return day+'-'+m+'-'+y; };
   const naam=k.naam||'heer/mevrouw';
   const adres=k.adres||'';
   const datum=fmtD(l.uitvoerdatum);
-  let subject='', body='';
+  const naamFile=(k.naam||'').replace(/[^a-z0-9]/gi,'_');
+  const datumFile=l.uitvoerdatum||new Date().toISOString().slice(0,10);
 
-  if(type==='offerte'){
-    subject='Offerte ontruiming '+adres;
-    body=['Geachte '+naam+',','','Bijgaand ontvangt u onze vrijblijvende offerte voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' op '+datum:'')+'.','','Het offertetotaal bedraagt '+ef(T.tot)+' incl. BTW.','','Graag ontvangen wij uw akkoord. Heeft u vragen, neem dan gerust contact op.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
-  } else if(type==='factuur'){
-    subject='Factuur ontruiming '+adres;
-    body=['Geachte '+naam+',','','Bijgaand ontvangt u de factuur voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' uitgevoerd op '+datum:'')+'.','','Factuurbedrag: '+ef(T.tot)+' incl. BTW.','IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Gelieve het bedrag binnen 15 dagen over te maken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
-  } else if(type==='bevestiging'){
-    subject='Bevestiging opdracht ontruiming '+adres;
-    body=['Geachte '+naam+',','','Hierbij bevestigen wij de opdracht voor de ontruiming van'+(adres?' '+adres:'')+(datum?' op '+datum:'')+'.','','Wij komen op de afgesproken datum bij u langs. Mocht u vragen hebben, neem gerust contact op.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
-  } else if(type==='herinnering'){
-    subject='Betalingsherinnering factuur ontruiming '+adres;
-    body=['Geachte '+naam+',','','Wij willen u vriendelijk herinneren aan de openstaande factuur voor de ontruiming'+(adres?' van '+adres:'')+'.','','Openstaand bedrag: '+ef(T.tot),'IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Wij verzoeken u het bedrag binnen 7 dagen over te maken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel].join('\n');
+  // For offerte and factuur: generate PDF and share with attachment
+  if(type==='offerte' || type==='factuur'){
+    showToast('PDF aanmaken...');
+    await new Promise(r=>setTimeout(r,0));
+
+    let blob, filename, subject, intro;
+    if(type==='offerte'){
+      blob = await generateOffertePDFBlob();
+      filename = 'Offerte_'+naamFile+'_'+datumFile+'.pdf';
+      subject = 'Offerte ontruiming '+adres;
+      intro = 'Geachte '+naam+',\n\nBijgaand ontvangt u onze vrijblijvende offerte'+(adres?' voor de ontruiming aan '+adres:'')+(datum?' op '+datum:'')+'. Het totaalbedrag bedraagt '+ef(T.tot)+' incl. BTW.\n\nGraag ontvangen wij uw akkoord.\n\nMet hartelijke groet,\nFrank van Haaren, Robin van de Water\nOntruimend Goed\n'+BEDRIJF.tel;
+    } else {
+      // Init factuur state
+      if(!S.factuur.nummer) S.factuur.nummer=getNextFactuurNummer();
+      if(!S.factuur.datum) S.factuur.datum=new Date().toISOString().slice(0,10);
+      if(!S.factuur.projectnaam&&S.klant.adres) S.factuur.projectnaam=S.klant.adres;
+      if(!S.factuur.aanhef&&S.klant.naam) S.factuur.aanhef='t.a.v. '+S.klant.naam;
+      if(!S.factuur.regels||S.factuur.regels.length===0) S.factuur.regels=buildVasteRegels();
+      S.factuur.regels=S.factuur.regels.filter(r=>!r.omschrijving.toLowerCase().includes('asbest'));
+      blob = await generatePDFBlob();
+      filename = 'Factuur_'+(S.factuur.nummer||'').replace('/','_')+'_'+naamFile+'.pdf';
+      subject = 'Factuur ontruiming '+adres;
+      intro = 'Geachte '+naam+',\n\nBijgaand ontvangt u de factuur'+(adres?' voor de ontruiming aan '+adres:'')+(datum?' uitgevoerd op '+datum:'')+'. Factuurbedrag: '+ef(T.tot)+' incl. BTW.\n\nIBAN: '+BEDRIJF.iban+'\nGelieve binnen 15 dagen te betalen.\n\nMet hartelijke groet,\nFrank van Haaren, Robin van de Water\nOntruimend Goed\n'+BEDRIJF.tel;
+    }
+
+    if(!blob){ showToast('PDF aanmaken mislukt'); return; }
+    const file=new File([blob],filename,{type:'application/pdf'});
+
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:subject,text:intro}).catch(e=>{
+        if(e.name!=='AbortError') showToast('Deelfunctie niet beschikbaar');
+      });
+    } else {
+      // Fallback: download PDF + open mailto
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+      const to=encodeURIComponent(k.email||'');
+      const sub=encodeURIComponent(subject);
+      const bod=encodeURIComponent(intro);
+      setTimeout(()=>{ window.location.href=`mailto:${to}?subject=${sub}&body=${bod}`; },800);
+      showToast('PDF opgeslagen — voeg toe als bijlage');
+    }
+    return;
   }
 
+  // Bevestiging + herinnering: plain mailto, no PDF
+  let subject='', body='';
+  if(type==='bevestiging'){
+    subject='Bevestiging opdracht ontruiming '+adres;
+    body=['Geachte '+naam+',','','Hierbij bevestigen wij de opdracht voor de ontruiming van'+(adres?' '+adres:'')+(datum?' op '+datum:'')+'.','','Wij komen op de afgesproken datum bij u langs.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
+  } else if(type==='herinnering'){
+    subject='Betalingsherinnering factuur ontruiming '+adres;
+    body=['Geachte '+naam+',','','Wij herinneren u vriendelijk aan de openstaande factuur'+(adres?' voor de ontruiming van '+adres:'')+'.','','Openstaand bedrag: '+ef(T.tot),'IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Graag het bedrag binnen 7 dagen overmaken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel].join('\n');
+  }
   const to=encodeURIComponent(k.email||'');
-  const sub=encodeURIComponent(subject);
-  const bod=encodeURIComponent(body);
-  window.location.href=`mailto:${to}?subject=${sub}&body=${bod}`;
+  window.location.href=`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+// Extract PDF generation logic so it can be reused
+async function generateOffertePDFBlob(){
+  if(!window.jspdf||!window.QRCode){
+    await Promise.all([
+      !window.jspdf  ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js') : Promise.resolve(),
+      !window.QRCode ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js') : Promise.resolve(),
+    ]);
+  }
+  // Temporarily redirect output to blob
+  const origFn = generateOffertePDF;
+  return new Promise(async (resolve)=>{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:'mm',format:'a4'});
+    const W=210,pad=22,colR=W-pad;
+    const k=S.klant,t=S.type,l=S.logistiek,T=calcTotalen();
+    const teal=[86,189,184],dark=[26,26,26],muted=[120,120,120];
+    const ef=n=>'\u20ac '+n.toFixed(2).replace('.',',');
+    const fmtD=d=>{if(!d)return '';const[y,m,day]=d.split('-');return day+'-'+m+'-'+y;};
+    const today=new Date().toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+    doc.addImage(LOGO_SRC,'PNG',pad,14,52,19);
+    const info=[['Adres',BEDRIJF.adres],['',BEDRIJF.postcode],['KvK nr',BEDRIJF.kvk],['BTW nr',BEDRIJF.btw],['Bank',BEDRIJF.bank],['IBAN',BEDRIJF.iban],['TEL',BEDRIJF.tel],['E-mail',BEDRIJF.email],['Website',BEDRIJF.website]];
+    let iy=14;
+    info.forEach(([lbl,val])=>{
+      if(lbl){doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...muted);doc.text(lbl,118,iy,{align:'right'});}
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...dark);doc.text(val,121,iy);iy+=5;
+    });
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...dark);
+    doc.text('Amsterdam, '+today+'.', pad, 44);
+    let y=54;
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...dark);doc.text('OFFERTE',pad,y);
+    doc.setFont('helvetica','normal');
+    const offInfo=[k.naam?'t.a.v. '+k.naam:'',k.adres?'Projectnaam: '+k.adres+(k.etage?' ('+k.etage+')':''):'','Projectbeschrijving: '+(t.woning||'Ontruiming'),l.uitvoerdatum?'Gewenste uitvoerdatum: '+fmtD(l.uitvoerdatum):''].filter(Boolean);
+    offInfo.forEach(line=>{doc.text(line,55,y);y+=5;});
+    y+=8;
+    const intro='Geachte '+(k.naam||'heer/mevrouw')+', hierbij ontvangt u onze vrijblijvende offerte voor de ontruimingswerkzaamheden.';
+    doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(...dark);
+    const introLines=doc.splitTextToSize(intro,colR-pad);
+    doc.text(introLines,pad,y);y+=introLines.length*5+8;
+    doc.setFillColor(...teal);doc.rect(pad,y,colR-pad,8,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(255,255,255);
+    doc.text('Beschrijving',pad+3,y+5.5);doc.text('Kosten',colR-3,y+5.5,{align:'right'});y+=8;
+    const regels=[(T.pers>0)&&{omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)',bedrag:T.pers},(T.bus>0)&&{omschrijving:'Bus',bedrag:T.bus},(T.lift>0)&&{omschrijving:'Verhuislift',bedrag:T.lift},(T.onth>0)&&{omschrijving:'Ontheffing/parkeerplekken',bedrag:T.onth},(T.afvl>0)&&{omschrijving:'Afvalkosten',bedrag:T.afvl}].filter(Boolean);
+    regels.forEach((r,i)=>{
+      doc.setDrawColor(210,210,210);doc.setFillColor(i%2===0?255:250,i%2===0?255:250,i%2===0?255:250);
+      const lines=doc.splitTextToSize(r.omschrijving,colR-pad-40);const rh=Math.max(9,lines.length*5+4);
+      doc.rect(pad,y,colR-pad,rh,'FD');doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...dark);
+      doc.text(lines,pad+3,y+5);doc.text(ef(r.bedrag),colR-3,y+5,{align:'right'});y+=rh;
+      if(y>255){doc.addPage();y=22;}
+    });
+    y+=4;
+    const totaalRows=[T.min>0?['25% mindering inboedel','-'+ef(T.min)]:null,['Subtotaal excl. BTW',ef(T.sub)],['BTW 21%',ef(T.btw)],['__bold__Totaal incl. BTW',ef(T.tot)]].filter(Boolean);
+    totaalRows.forEach(([lbl,val])=>{
+      const bold=lbl.startsWith('__bold__');const cleanLbl=lbl.replace('__bold__','');
+      doc.setDrawColor(210,210,210);doc.rect(pad,y,colR-pad,7,'D');
+      doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(9);doc.setTextColor(...dark);
+      doc.text(cleanLbl,pad+3,y+4.8);doc.text(val,colR-3,y+4.8,{align:'right'});y+=7;
+    });
+    y+=12;
+    if(S.offerteNotities&&S.offerteNotities.trim()&&y+20<270){
+      y+=4;doc.setFillColor(236,250,249);
+      const notLines=doc.splitTextToSize(S.offerteNotities.trim(),colR-pad-6);
+      const notH=notLines.length*5+8;
+      if(y+notH<272){
+        doc.rect(pad,y,colR-pad,notH,'F');doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...teal);
+        doc.text('Aanvullende informatie',pad+3,y+5);doc.setFont('helvetica','normal');doc.setTextColor(...dark);
+        notLines.forEach((line,i)=>{doc.text(line,pad+3,y+10+(i*5));});y+=notH+6;
+      }
+    }
+    const afsluiting='Wij hopen u hiermee een duidelijk beeld te hebben gegeven. Graag ontvangen wij uw akkoord.\n\nMet hartelijke groet,\nFrank van Haaren, Robin van de Water';
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...dark);
+    afsluiting.split('\n').forEach(line=>{if(y<278){doc.text(line,pad,y);y+=5;}});
+    const pages=doc.getNumberOfPages();
+    for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(180,180,180);doc.text('Ontruimend Goed \u2014 '+BEDRIJF.iban+' \u2014 '+BEDRIJF.email,W/2,290,{align:'center'});}
+    resolve(doc.output('blob'));
+  });
 }
 
 /* ---- INIT ---- */
