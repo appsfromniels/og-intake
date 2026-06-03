@@ -41,10 +41,7 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;position:r
 .header-right{display:flex;gap:6px}
 
 
-.hdr-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 6px;font-size:12px;font-weight:500;border-radius:8px;cursor:pointer;white-space:nowrap;border:none}
 .hdr-btn svg{width:13px;height:13px;flex-shrink:0}
-.hdr-btn.teal{background:var(--g50);border:1.5px solid var(--g200);color:var(--g700)}
-.hdr-btn.solid{background:var(--g400);border:1.5px solid var(--g400);color:#fff}
 
 /* TABS */
 .tabs{display:flex;background:#fff;border-bottom:1.5px solid var(--border);padding:0 0 0;border-bottom:none;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -269,8 +266,6 @@ td input:focus{border-color:var(--g500)}
 .no-planning{text-align:center;padding:48px 32px;color:var(--muted);font-size:14px}
 
 /* EMAIL BUTTON */
-.email-btn{flex:1;padding:9px 6px;background:#fff;border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
-.email-btn:active{background:var(--bg)}
 
 /* EMAIL SHEET */
 .email-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:12px 0 calc(env(safe-area-inset-bottom,0px) + 12px)}
@@ -354,30 +349,6 @@ td input:focus{border-color:var(--g500)}
   </div>
 </div>
 
-<div class="sheet-overlay" id="mail-choice-sheet" onclick="if(event.target===this)closeMailChoice()">
-  <div class="email-sheet">
-    <div class="sheet-title">Openen met</div>
-    <button class="email-option" id="gmail-btn" onclick="openWithGmail()">
-      <div class="email-option-icon" style="background:#FEE8E7">
-        <svg viewBox="0 0 24 24" fill="none" stroke="none"><path d="M20 4H4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" fill="#EA4335"/><path d="M2 6l10 7 10-7" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-      </div>
-      <div>
-        <div class="email-option-title">Gmail</div>
-        <div class="email-option-sub">Opent Gmail met alles ingevuld</div>
-      </div>
-    </button>
-    <button class="email-option" id="other-mail-btn" onclick="openWithOtherMail()">
-      <div class="email-option-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--g600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-      </div>
-      <div>
-        <div class="email-option-title">Andere mailapp</div>
-        <div class="email-option-sub">Outlook, Apple Mail, etc.</div>
-      </div>
-    </button>
-    <button class="sheet-cancel" onclick="closeMailChoice()">Annuleren</button>
-  </div>
-</div>
 <div class="confirm-overlay" id="confirm-overlay">
   <div class="confirm-box">
     <div class="confirm-title">Intake verwijderen</div>
@@ -404,7 +375,6 @@ td input:focus{border-color:var(--g500)}
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<input type="file" id="load-file-input" accept=".json" style="display:none" onchange="importFile(this)">
 
 <script>
 
@@ -1219,7 +1189,7 @@ async function generatePDFBlob(){
 
   const k=S.klant, t=S.type, l=S.logistiek, T=calcTotalen();
   const yn = v => v===true?'Ja':v===false?'Nee':'—';
-  const ef = n => '€ ' + n.toFixed(2).replace('.',',');
+  const ef = n => eu(n);
   const fmtD = d => { if(!d) return '—'; const [y,m,day]=d.split('-'); return `${day}-${m}-${y}`; };
   const takenJa = TAKEN_LIST.filter(([k])=>S.taken[k]===true).map(([,lbl])=>lbl);
   const takenNee = TAKEN_LIST.filter(([k])=>S.taken[k]===false).map(([,lbl])=>lbl);
@@ -1414,7 +1384,7 @@ function schedulePdfCache(){
   clearTimeout(_pdfTimer);
   _pdfTimer = setTimeout(async () => {
     try { _cachedPdfBlob = await generatePDFBlob(); } catch(e) { _cachedPdfBlob = null; }
-    try { _cachedOffertePdfBlob = await generateOffertePDFBlob(); } catch(e) { _cachedOffertePdfBlob = null; }
+    try { _cachedOffertePdfBlob = await generateOffertePDF(true); } catch(e) { _cachedOffertePdfBlob = null; }
     try { _cachedFactuurPdfBlob = await generateFactuurPDF(true); } catch(e) { _cachedFactuurPdfBlob = null; }
   }, 800);
 }
@@ -1569,7 +1539,21 @@ function renderFactuur(){
 }
 
 
-async function generateOffertePDF(){
+function validateForDocument(){
+  const k=S.klant, l=S.logistiek;
+  const missing=[];
+  if(!k.naam) missing.push('Klantnaam');
+  if(!k.adres) missing.push('Adres');
+  if(!l.personen&&!l.uren&&!l.dagen) missing.push('Personeelsgegevens (tabje Kosten)');
+  if(missing.length>0){
+    showToast('Vul eerst in: '+missing.join(', '));
+    return false;
+  }
+  return true;
+}
+
+async function generateOffertePDF(blobOnly=false){
+  if(!blobOnly && !validateForDocument()) return null;
   showToast('Offerte aanmaken...');
   await new Promise(r=>setTimeout(r,0));
 
@@ -1720,25 +1704,18 @@ async function generateOffertePDF(){
   const datum=l.uitvoerdatum||new Date().toISOString().slice(0,10);
   const filename='Offerte_'+naam+'_'+datum+'.pdf';
   const blob=doc.output('blob');
+  if(blobOnly) return blob;
   const file=new File([blob],filename,{type:'application/pdf'});
-
   if(navigator.canShare && navigator.canShare({files:[file]})){
-    navigator.share({files:[file],title:'Offerte '+k.naam}).catch(()=>{
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download=filename;
-      document.body.appendChild(a); a.click();
-      setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
-    });
+    navigator.share({files:[file],title:'Offerte '+k.naam}).catch(()=>{ downloadBlob(blob,filename); });
   } else {
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download=filename;
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+    downloadBlob(blob,filename);
     showToast('Offerte opgeslagen');
   }
 }
 
 async function generateFactuurPDF(blobOnly=false){
+  if(!blobOnly && !validateForDocument()) return null;
   // Init factuur state if needed
   if(!S.factuur.nummer) S.factuur.nummer = getNextFactuurNummer();
   if(!S.factuur.datum) S.factuur.datum = new Date().toISOString().slice(0,10);
@@ -1970,16 +1947,10 @@ async function generateFactuurPDF(blobOnly=false){
 
   if(navigator.canShare && navigator.canShare({files:[file]})){
     navigator.share({files:[file], title:'Factuur '+f.nummer}).catch(()=>{
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download=filename;
-      document.body.appendChild(a); a.click();
-      setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+      downloadBlob(blob,filename);
     });
   } else {
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download=filename;
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+    downloadBlob(blob,filename);
     showToast('Factuur opgeslagen');
   }
 }
@@ -2035,33 +2006,6 @@ function renderQRPreview(){
 
 
 
-
-/* ---- MAIL CHOICE ---- */
-let _pendingMail = null;
-
-function openMailChoice(mailData){
-  _pendingMail = mailData;
-  document.getElementById('mail-choice-sheet').classList.add('open');
-}
-function closeMailChoice(){
-  document.getElementById('mail-choice-sheet').classList.remove('open');
-}
-function openWithGmail(){
-  closeMailChoice();
-  if(!_pendingMail) return;
-  const {to, subject, body} = _pendingMail;
-  const url = 'https://mail.google.com/mail/?view=cm&fs=1'
-    + '&to=' + encodeURIComponent(to)
-    + '&su=' + encodeURIComponent(subject)
-    + '&body=' + encodeURIComponent(body);
-  window.location.href = url;
-}
-function openWithOtherMail(){
-  closeMailChoice();
-  if(!_pendingMail) return;
-  const {to, subject, body} = _pendingMail;
-  window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
 
 /* ---- FACTUREN OVERZICHT ---- */
 function goFacturen(){
@@ -2265,7 +2209,7 @@ function renderPlanning(){
 function openEmailSheet(){
   document.getElementById('email-sheet').classList.add('open');
   // Pre-generate PDFs so they're ready when user picks an option
-  if(!_cachedOffertePdfBlob) generateOffertePDFBlob().then(b=>{ _cachedOffertePdfBlob=b; }).catch(()=>{});
+  if(!_cachedOffertePdfBlob) generateOffertePDF(true).then(b=>{ _cachedOffertePdfBlob=b; }).catch(()=>{});
   if(!_cachedPdfBlob) generatePDFBlob().then(b=>{ _cachedPdfBlob=b; }).catch(()=>{});
   if(!_cachedFactuurPdfBlob) generateFactuurPDF(true).then(b=>{ _cachedFactuurPdfBlob=b; }).catch(()=>{});
 }
@@ -2273,7 +2217,7 @@ function closeEmailSheet(){ document.getElementById('email-sheet').classList.rem
 
 async function sendEmail(type){
   const k=S.klant, l=S.logistiek, T=calcTotalen();
-  const ef=n=>'\u20ac\u00a0'+n.toFixed(2).replace('.',',');
+  const ef=n=>eu(n);
   const fmtD=d=>{ if(!d) return ''; const [y,m,day]=d.split('-'); return day+'-'+m+'-'+y; };
   const naam=k.naam||'heer/mevrouw';
   const adres=k.adres||'';
@@ -2324,7 +2268,7 @@ async function sendEmail(type){
     // Generate on demand if cache not ready
     if(!blob){
       showToast('PDF voorbereiden...');
-      blob = type==='offerte' ? await generateOffertePDFBlob() : await generateFactuurPDF(true);
+      blob = type==='offerte' ? await generateOffertePDF(true) : await generateFactuurPDF(true);
     }
     if(blob){
       const file=new File([blob], filename, {type:'application/pdf'});
@@ -2348,13 +2292,15 @@ async function sendEmail(type){
   window.location.href=`mailto:${emailAdres}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
+function downloadBlob(blob, filename){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url); document.body.removeChild(a);},1000);
+}
+
 function shareAsFallback(blob, filename, emailAdres){
-  if(blob){
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download=filename;
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
-  }
+  if(blob) downloadBlob(blob, filename);
   if(emailAdres) showEmailToast(emailAdres);
 }
 
@@ -2371,81 +2317,6 @@ function showEmailToast(email){
 }
 
 // Extract PDF generation logic so it can be reused
-async function generateOffertePDFBlob(){
-  if(!window.jspdf||!window.QRCode){
-    await Promise.all([
-      !window.jspdf  ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js') : Promise.resolve(),
-      !window.QRCode ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js') : Promise.resolve(),
-    ]);
-  }
-  // Temporarily redirect output to blob
-  const origFn = generateOffertePDF;
-  return new Promise(async (resolve)=>{
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({unit:'mm',format:'a4'});
-    const W=210,pad=22,colR=W-pad;
-    const k=S.klant,t=S.type,l=S.logistiek,T=calcTotalen();
-    const teal=[86,189,184],dark=[26,26,26],muted=[120,120,120];
-    const ef=n=>'\u20ac '+n.toFixed(2).replace('.',',');
-    const fmtD=d=>{if(!d)return '';const[y,m,day]=d.split('-');return day+'-'+m+'-'+y;};
-    const today=new Date().toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
-    doc.addImage(LOGO_SRC,'PNG',pad,14,52,19);
-    const info=[['Adres',BEDRIJF.adres],['',BEDRIJF.postcode],['KvK nr',BEDRIJF.kvk],['BTW nr',BEDRIJF.btw],['Bank',BEDRIJF.bank],['IBAN',BEDRIJF.iban],['TEL',BEDRIJF.tel],['E-mail',BEDRIJF.email],['Website',BEDRIJF.website]];
-    let iy=14;
-    info.forEach(([lbl,val])=>{
-      if(lbl){doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...muted);doc.text(lbl,118,iy,{align:'right'});}
-      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...dark);doc.text(val,121,iy);iy+=5;
-    });
-    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...dark);
-    doc.text('Amsterdam, '+today+'.', pad, 44);
-    let y=54;
-    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...dark);doc.text('OFFERTE',pad,y);
-    doc.setFont('helvetica','normal');
-    const offInfo=[k.naam?'t.a.v. '+k.naam:'',k.adres?'Projectnaam: '+k.adres+(k.etage?' ('+k.etage+')':''):'','Projectbeschrijving: '+(t.woning||'Ontruiming'),l.uitvoerdatum?'Gewenste uitvoerdatum: '+fmtD(l.uitvoerdatum):''].filter(Boolean);
-    offInfo.forEach(line=>{doc.text(line,55,y);y+=5;});
-    y+=8;
-    const intro='Geachte '+(k.naam||'heer/mevrouw')+', hierbij ontvangt u onze vrijblijvende offerte voor de ontruimingswerkzaamheden.';
-    doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(...dark);
-    const introLines=doc.splitTextToSize(intro,colR-pad);
-    doc.text(introLines,pad,y);y+=introLines.length*5+8;
-    doc.setFillColor(...teal);doc.rect(pad,y,colR-pad,8,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(255,255,255);
-    doc.text('Beschrijving',pad+3,y+5.5);doc.text('Kosten',colR-3,y+5.5,{align:'right'});y+=8;
-    const regels=[(T.pers>0)&&{omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)',bedrag:T.pers},(T.bus>0)&&{omschrijving:'Bus',bedrag:T.bus},(T.lift>0)&&{omschrijving:'Verhuislift',bedrag:T.lift},(T.onth>0)&&{omschrijving:'Ontheffing/parkeerplekken',bedrag:T.onth},(T.afvl>0)&&{omschrijving:'Afvalkosten',bedrag:T.afvl}].filter(Boolean);
-    regels.forEach((r,i)=>{
-      doc.setDrawColor(210,210,210);doc.setFillColor(i%2===0?255:250,i%2===0?255:250,i%2===0?255:250);
-      const lines=doc.splitTextToSize(r.omschrijving,colR-pad-40);const rh=Math.max(9,lines.length*5+4);
-      doc.rect(pad,y,colR-pad,rh,'FD');doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...dark);
-      doc.text(lines,pad+3,y+5);doc.text(ef(r.bedrag),colR-3,y+5,{align:'right'});y+=rh;
-      if(y>255){doc.addPage();y=22;}
-    });
-    y+=4;
-    const totaalRows=[T.min>0?['25% mindering inboedel','-'+ef(T.min)]:null,['Subtotaal excl. BTW',ef(T.sub)],['BTW 21%',ef(T.btw)],['__bold__Totaal incl. BTW',ef(T.tot)]].filter(Boolean);
-    totaalRows.forEach(([lbl,val])=>{
-      const bold=lbl.startsWith('__bold__');const cleanLbl=lbl.replace('__bold__','');
-      doc.setDrawColor(210,210,210);doc.rect(pad,y,colR-pad,7,'D');
-      doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(9);doc.setTextColor(...dark);
-      doc.text(cleanLbl,pad+3,y+4.8);doc.text(val,colR-3,y+4.8,{align:'right'});y+=7;
-    });
-    y+=12;
-    if(S.offerteNotities&&S.offerteNotities.trim()&&y+20<270){
-      y+=4;doc.setFillColor(236,250,249);
-      const notLines=doc.splitTextToSize(S.offerteNotities.trim(),colR-pad-6);
-      const notH=notLines.length*5+8;
-      if(y+notH<272){
-        doc.rect(pad,y,colR-pad,notH,'F');doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...teal);
-        doc.text('Aanvullende informatie',pad+3,y+5);doc.setFont('helvetica','normal');doc.setTextColor(...dark);
-        notLines.forEach((line,i)=>{doc.text(line,pad+3,y+10+(i*5));});y+=notH+6;
-      }
-    }
-    const afsluiting='Wij hopen u hiermee een duidelijk beeld te hebben gegeven. Graag ontvangen wij uw akkoord.\n\nMet hartelijke groet,\nFrank van Haaren, Robin van de Water';
-    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...dark);
-    afsluiting.split('\n').forEach(line=>{if(y<278){doc.text(line,pad,y);y+=5;}});
-    const pages=doc.getNumberOfPages();
-    for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(180,180,180);doc.text('Ontruimend Goed \u2014 '+BEDRIJF.iban+' \u2014 '+BEDRIJF.email,W/2,290,{align:'center'});}
-    resolve(doc.output('blob'));
-  });
-}
 
 /* ---- INIT ---- */
 refresh();
