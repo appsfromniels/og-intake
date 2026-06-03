@@ -1557,7 +1557,6 @@ function validateForDocument(){
 }
 
 async function generateOffertePDF(blobOnly=false){
-  if(!blobOnly && !validateForDocument()) return null;
   if(!blobOnly){ showToast('Offerte aanmaken...'); await new Promise(r=>setTimeout(r,0)); }
 
   if(!window.jspdf || !window.QRCode){
@@ -1718,7 +1717,6 @@ async function generateOffertePDF(blobOnly=false){
 }
 
 async function generateFactuurPDF(blobOnly=false){
-  if(!blobOnly && !validateForDocument()) return null;
   // Init factuur state if needed
   if(!S.factuur.nummer) S.factuur.nummer = getNextFactuurNummer();
   if(!S.factuur.datum) S.factuur.datum = new Date().toISOString().slice(0,10);
