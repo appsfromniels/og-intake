@@ -1388,6 +1388,7 @@ function closePrintSheet(){ document.getElementById('print-sheet').classList.rem
 
 let _cachedPdfBlob = null;
 let _cachedOffertePdfBlob = null;
+let _cachedFactuurPdfBlob = null;
 let _pdfTimer = null;
 
 function loadScript(src){
@@ -1414,6 +1415,7 @@ function schedulePdfCache(){
   _pdfTimer = setTimeout(async () => {
     try { _cachedPdfBlob = await generatePDFBlob(); } catch(e) { _cachedPdfBlob = null; }
     try { _cachedOffertePdfBlob = await generateOffertePDFBlob(); } catch(e) { _cachedOffertePdfBlob = null; }
+    try { _cachedFactuurPdfBlob = await generateFactuurPDF(true); } catch(e) { _cachedFactuurPdfBlob = null; }
   }, 800);
 }
 
@@ -1736,7 +1738,7 @@ async function generateOffertePDF(){
   }
 }
 
-async function generateFactuurPDF(){
+async function generateFactuurPDF(blobOnly=false){
   // Init factuur state if needed
   if(!S.factuur.nummer) S.factuur.nummer = getNextFactuurNummer();
   if(!S.factuur.datum) S.factuur.datum = new Date().toISOString().slice(0,10);
@@ -1964,6 +1966,7 @@ async function generateFactuurPDF(){
   const naam = (k.naam||'factuur').replace(/[^a-z0-9]/gi,'_');
   const filename = 'Factuur_'+f.nummer.replace('/','_')+'_'+naam+'.pdf';
   const blob = doc.output('blob');
+  if(blobOnly) return blob;
   const file = new File([blob], filename, {type:'application/pdf'});
 
   if(navigator.canShare && navigator.canShare({files:[file]})){
@@ -2210,7 +2213,13 @@ function renderPlanning(){
 }
 
 /* ---- EMAIL ---- */
-function openEmailSheet(){ document.getElementById('email-sheet').classList.add('open'); }
+function openEmailSheet(){
+  document.getElementById('email-sheet').classList.add('open');
+  // Pre-generate PDFs so they're ready when user picks an option
+  if(!_cachedOffertePdfBlob) generateOffertePDFBlob().then(b=>{ _cachedOffertePdfBlob=b; }).catch(()=>{});
+  if(!_cachedPdfBlob) generatePDFBlob().then(b=>{ _cachedPdfBlob=b; }).catch(()=>{});
+  if(!_cachedFactuurPdfBlob) generateFactuurPDF(true).then(b=>{ _cachedFactuurPdfBlob=b; }).catch(()=>{});
+}
 function closeEmailSheet(){ document.getElementById('email-sheet').classList.remove('open'); }
 
 async function sendEmail(type){
@@ -2244,7 +2253,7 @@ async function sendEmail(type){
     scheduleAutoSave();
     subject='Factuur ontruiming '+adres;
     body=['Geachte '+naam+',','','Bijgaand ontvangt u de factuur voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' uitgevoerd op '+datum:'')+'.','','Factuurbedrag: '+ef(fT.totaal)+' incl. BTW.','IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Gelieve binnen 15 dagen te betalen.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
-    blob=_cachedPdfBlob;
+    blob=_cachedFactuurPdfBlob;
     filename='Factuur_'+(S.factuur.nummer||'').replace('/','_')+'_'+naamFile+'.pdf';
 
   } else if(type==='bevestiging'){
@@ -2262,34 +2271,42 @@ async function sendEmail(type){
   }
 
   // For offerte/factuur: share PDF via native share sheet
-  if(blob && (type==='offerte'||type==='factuur')){
-    const file=new File([blob], filename, {type:'application/pdf'});
-    if(navigator.canShare && navigator.canShare({files:[file]})){
-      navigator.share({files:[file], title:subject, text:body}).then(()=>{
-        if(emailAdres) showEmailToast(emailAdres);
-      }).catch(e=>{
-        if(e.name!=='AbortError'){
-          // Fall back to download
-          const url=URL.createObjectURL(blob);
-          const a=document.createElement('a'); a.href=url; a.download=filename;
-          document.body.appendChild(a); a.click();
-          setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
-          if(emailAdres) showEmailToast(emailAdres);
-        }
-      });
-      return;
+  if(type==='offerte'||type==='factuur'){
+    // Generate on demand if cache not ready
+    if(!blob){
+      showToast('PDF voorbereiden...');
+      blob = type==='offerte' ? await generateOffertePDFBlob() : await generateFactuurPDF(true);
     }
-    // canShare not available: download
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download=filename;
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
-    if(emailAdres) showEmailToast(emailAdres);
+    if(blob){
+      const file=new File([blob], filename, {type:'application/pdf'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        try {
+          await navigator.share({files:[file], title:subject, text:body});
+          if(emailAdres) showEmailToast(emailAdres);
+        } catch(e){
+          if(e.name!=='AbortError'){
+            shareAsFallback(blob, filename, emailAdres);
+          }
+        }
+        return;
+      }
+    }
+    shareAsFallback(blob, filename, emailAdres);
     return;
   }
 
   // Bevestiging/herinnering: mailto
   window.location.href=`mailto:${emailAdres}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function shareAsFallback(blob, filename, emailAdres){
+  if(blob){
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+  }
+  if(emailAdres) showEmailToast(emailAdres);
 }
 
 function showEmailToast(email){
