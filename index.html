@@ -267,6 +267,10 @@ td input:focus{border-color:var(--g500)}
 
 /* EMAIL BUTTON */
 
+/* EMAIL BUTTON */
+.email-btn{flex:1;padding:9px 6px;background:#fff;border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.email-btn:active{background:var(--bg)}
+
 /* EMAIL SHEET */
 .email-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:12px 0 calc(env(safe-area-inset-bottom,0px) + 12px)}
 .email-option{display:flex;align-items:flex-start;gap:14px;width:100%;padding:14px 20px;border:none;background:none;cursor:pointer;text-align:left}
@@ -1554,8 +1558,7 @@ function validateForDocument(){
 
 async function generateOffertePDF(blobOnly=false){
   if(!blobOnly && !validateForDocument()) return null;
-  showToast('Offerte aanmaken...');
-  await new Promise(r=>setTimeout(r,0));
+  if(!blobOnly){ showToast('Offerte aanmaken...'); await new Promise(r=>setTimeout(r,0)); }
 
   if(!window.jspdf || !window.QRCode){
     await Promise.all([
@@ -2025,7 +2028,6 @@ async function downloadFactuur(id, event){
   APP.id = id;
   // Generate factuur PDF
   showToast('Factuur aanmaken...');
-  await new Promise(r=>setTimeout(r,0));
   if(!window.jspdf||!window.QRCode){
     await Promise.all([
       !window.jspdf  ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js') : Promise.resolve(),
