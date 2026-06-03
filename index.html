@@ -245,6 +245,41 @@ td input:focus{border-color:var(--g500)}
 .qr-preview canvas,.qr-preview img{width:140px;height:140px;border-radius:8px}
 .qr-label{font-size:12px;color:var(--muted);text-align:center;line-height:1.4}
 .add-regel-btn{display:flex;align-items:center;gap:6px;padding:10px 0;color:var(--g700);font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;width:100%}
+
+/* STATUS BADGES */
+.status-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.status-selector{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.status-chip{padding:8px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:2px solid transparent;transition:all 0.15s;opacity:0.5}
+.status-chip.active{opacity:1;border-color:currentColor}
+
+/* PLANNING */
+.planning-header{padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 12px;background:#fff;border-bottom:1px solid var(--border)}
+.planning-back{display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-size:15px;font-weight:600;color:var(--text);padding:0;margin-bottom:10px}
+.planning-back svg{width:20px;height:20px;stroke:var(--text);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.month-group{margin-bottom:8px}
+.month-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:14px 16px 6px}
+.planning-item{display:flex;align-items:center;gap:12px;background:var(--card);border-bottom:1px solid var(--border);padding:13px 16px;cursor:pointer}
+.planning-item:active{background:var(--g50)}
+.planning-date{width:44px;flex-shrink:0;text-align:center}
+.planning-day{font-size:20px;font-weight:700;color:var(--text);line-height:1}
+.planning-weekday{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em}
+.planning-info{flex:1;min-width:0}
+.planning-naam{font-size:14px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planning-adres{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.no-planning{text-align:center;padding:48px 32px;color:var(--muted);font-size:14px}
+
+/* EMAIL BUTTON */
+.email-btn{flex:1;padding:9px 6px;background:#fff;border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.email-btn:active{background:var(--bg)}
+
+/* EMAIL SHEET */
+.email-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:12px 0 calc(env(safe-area-inset-bottom,0px) + 12px)}
+.email-option{display:flex;align-items:flex-start;gap:14px;width:100%;padding:14px 20px;border:none;background:none;cursor:pointer;text-align:left}
+.email-option:active{background:var(--bg)}
+.email-option-icon{width:36px;height:36px;border-radius:10px;background:var(--g50);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.email-option-icon svg{width:18px;height:18px;stroke:var(--g600);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.email-option-title{font-size:14px;font-weight:600;color:var(--text)}
+.email-option-sub{font-size:12px;color:var(--muted);margin-top:2px}
 @media print{
   .bottom-nav,.tabs,.save-btn,.action-btn{display:none!important}
   .content{padding:0}
@@ -269,6 +304,34 @@ td input:focus{border-color:var(--g500)}
 <nav class="bottom-nav" id="bottom-nav"></nav>
 
 
+
+<div class="sheet-overlay" id="email-sheet" onclick="if(event.target===this)closeEmailSheet()">
+  <div class="email-sheet">
+    <div class="sheet-title">E-mail versturen</div>
+    <button class="email-option" onclick="closeEmailSheet();sendEmail('offerte')">
+      <div class="email-option-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+      <div>
+        <div class="email-option-title">Offerte aanbieding</div>
+        <div class="email-option-sub">Stuur de offerte ter goedkeuring</div>
+      </div>
+    </button>
+    <button class="email-option" onclick="closeEmailSheet();sendEmail('bevestiging')">
+      <div class="email-option-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+      <div>
+        <div class="email-option-title">Opdrachtbevestiging</div>
+        <div class="email-option-sub">Bevestig de afgesproken opdracht</div>
+      </div>
+    </button>
+    <button class="email-option" onclick="closeEmailSheet();sendEmail('herinnering')">
+      <div class="email-option-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <div>
+        <div class="email-option-title">Betalingsherinnering</div>
+        <div class="email-option-sub">Vriendelijke herinnering openstaande factuur</div>
+      </div>
+    </button>
+    <button class="sheet-cancel" onclick="closeEmailSheet()">Annuleren</button>
+  </div>
+</div>
 <div class="confirm-overlay" id="confirm-overlay">
   <div class="confirm-box">
     <div class="confirm-title">Intake verwijderen</div>
@@ -300,6 +363,15 @@ td input:focus{border-color:var(--g500)}
 <script>
 
 
+
+const STATUSES = {
+  nieuw:             { label:'Nieuw',             color:'#888',    bg:'#F5F5F5' },
+  offerte_verstuurd: { label:'Offerte verstuurd', color:'#1976D2', bg:'#E3F2FD' },
+  akkoord:           { label:'Akkoord',           color:'#7B1FA2', bg:'#F3E5F5' },
+  ingepland:         { label:'Ingepland',         color:'#E65100', bg:'#FFF3E0' },
+  afgerond:          { label:'Afgerond',          color:'#2D7A4A', bg:'#E8F5E9' },
+  geannuleerd:       { label:'Geannuleerd',       color:'#C62828', bg:'#FFEBEE' },
+};
 
 const TABS = [
   { id:'klant', label:'Klant', icon:'user' },
@@ -358,6 +430,7 @@ function emptyState(){
     notities: '',
     fotos: [],
     offerteNotities: '',
+    status: 'nieuw',
     factuur: {
       nummer: '',
       datum: '',
@@ -383,7 +456,11 @@ function saveIntakeToStorage(){
     localStorage.setItem('og_intake_'+APP.id, JSON.stringify(S));
     const naam = S.klant.naam || 'Naamloos';
     const idx = getIndex();
-    const entry = { id:APP.id, naam, adres:S.klant.adres||'', datum:S.logistiek.uitvoerdatum||S.klant.datumOfferte||'', modified:Date.now() };
+    const statusBadge = (s) => {
+      const st = STATUSES[s||'nieuw']||STATUSES.nieuw;
+      return `<span class="status-badge" style="background:${st.bg};color:${st.color}">${st.label}</span>`;
+    };
+    const entry = { id:APP.id, naam, adres:S.klant.adres||'', datum:S.logistiek.uitvoerdatum||S.klant.datumOfferte||'', modified:Date.now(), status:S.status||'nieuw' };
     const i = idx.findIndex(e=>e.id===APP.id);
     if(i>=0) idx[i]=entry; else idx.unshift(entry);
     localStorage.setItem('og_index', JSON.stringify(idx));
@@ -493,10 +570,15 @@ function renderHome(){
           <span class="home-title">Intakeformulier</span>
         </div>
       </div>
-      <button class="new-btn" onclick="newIntake()">
-        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nieuwe intake
-      </button>
+      <div style="display:flex;gap:8px;margin:16px 16px 8px">
+        <button class="new-btn" onclick="newIntake()" style="margin:0;flex:1">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nieuwe intake
+        </button>
+        <button onclick="goPlanning()" style="padding:15px 18px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--g700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </button>
+      </div>
       ${idx.length>0?'<div class="list-label">Opgeslagen intakes</div>':''}
       ${list}
     </div>`;
@@ -516,6 +598,10 @@ function renderFormHeader(){
 
     </div>
     <div style="display:flex;gap:6px;padding-bottom:10px">
+      <button onclick="openEmailSheet()" class="email-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        E-mail
+      </button>
       <button onclick="generateOffertePDF()" style="flex:1;padding:9px 6px;background:var(--g50);border:1.5px solid var(--g200);border-radius:var(--rs);font-size:13px;font-weight:600;color:var(--g700);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Offerte
@@ -939,6 +1025,20 @@ function renderOverzicht(){
     </div>
   </div>
 
+    <div class="card">
+    ${cardH('check','Status')}
+    <div class="card-body">
+      <div class="status-selector">
+        ${Object.entries(STATUSES).map(([key,st])=>`
+          <div class="status-chip${(S.status||'nieuw')===key?' active':''}"
+            style="background:${st.bg};color:${st.color}"
+            onclick="S.status='${key}';scheduleAutoSave();refresh()">
+            ${st.label}
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>
+
     <button class="action-btn green" onclick="openPrintSheet()">
     ${icon('printer')} Afdrukken / PDF
   </button>`;
@@ -973,6 +1073,8 @@ function bindInputs(){
 function refresh(){
   if(APP.view === 'home'){
     renderHome();
+  } else if(APP.view === 'planning'){
+    renderPlanning();
   } else {
     renderFormHeader();
     document.getElementById('bottom-nav').style.display = '';
