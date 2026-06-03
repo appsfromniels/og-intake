@@ -1750,8 +1750,7 @@ async function generateFactuurPDF(blobOnly=false){
   const _fT = calcFactuurTotals();
   S.factuurMeta = { nummer: S.factuur.nummer, datum: S.factuur.datum||new Date().toISOString().slice(0,10), bedrag: _fT.totaal, betaald: S.betaling.voldaan||false };
   scheduleAutoSave();
-  showToast('Factuur aanmaken...');
-  await new Promise(r=>setTimeout(r,0)); // yield to show toast
+  if(!blobOnly){ showToast('Factuur aanmaken...'); await new Promise(r=>setTimeout(r,0)); }
 
   // Ensure libraries are loaded
   if(!window.jspdf || !window.QRCode){
