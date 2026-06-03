@@ -322,6 +322,13 @@ td input:focus{border-color:var(--g500)}
         <div class="email-option-sub">Bevestig de afgesproken opdracht</div>
       </div>
     </button>
+    <button class="email-option" onclick="closeEmailSheet();sendEmail('factuur')">
+      <div class="email-option-icon"><svg viewBox="0 0 24 24"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2-3-2z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg></div>
+      <div>
+        <div class="email-option-title">Factuur aanbieding</div>
+        <div class="email-option-sub">Stuur de factuur ter betaling</div>
+      </div>
+    </button>
     <button class="email-option" onclick="closeEmailSheet();sendEmail('herinnering')">
       <div class="email-option-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
       <div>
@@ -1970,6 +1977,118 @@ function renderQRPreview(){
     if(dx > 0 && S.tab > 0) goTab(S.tab - 1);               // swipe right → prev
   }, {passive: true});
 })();
+
+
+/* ---- STATUS ---- */
+function updateIndexStatus(id, status){
+  try {
+    const idx = getIndex();
+    const i = idx.findIndex(e=>e.id===id);
+    if(i>=0){ idx[i].status=status; localStorage.setItem('og_index',JSON.stringify(idx)); }
+  } catch(e){}
+}
+
+/* ---- PLANNING ---- */
+function goPlanning(){
+  APP.view='planning';
+  refresh();
+}
+
+function renderPlanning(){
+  document.getElementById('app-header').style.display='none';
+  document.getElementById('bottom-nav').style.display='none';
+  const idx = getIndex();
+  const withDate = idx.filter(i=>i.datum).sort((a,b)=>a.datum.localeCompare(b.datum));
+  const withoutDate = idx.filter(i=>!i.datum);
+  const DAYS=['zo','ma','di','wo','do','vr','za'];
+  const MONTHS=['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+  const grouped={};
+  withDate.forEach(item=>{
+    const d=new Date(item.datum);
+    const key=item.datum.slice(0,7);
+    if(!grouped[key]) grouped[key]=[];
+    grouped[key].push({...item,d});
+  });
+  const monthsHtml=Object.entries(grouped).map(([key,items])=>{
+    const [y,m]=key.split('-');
+    const monthLabel=MONTHS[parseInt(m)-1]+' '+y;
+    const itemsHtml=items.map(item=>{
+      const st=STATUSES[item.status||'nieuw']||STATUSES.nieuw;
+      return `<div class="planning-item" onclick="openIntake('${item.id}')">
+        <div class="planning-date">
+          <div class="planning-day">${item.d.getDate()}</div>
+          <div class="planning-weekday">${DAYS[item.d.getDay()]}</div>
+        </div>
+        <div class="planning-info">
+          <div class="planning-naam">${item.naam||'Naamloos'}</div>
+          <div class="planning-adres">${item.adres||''}</div>
+        </div>
+        <span class="status-badge" style="background:${st.bg};color:${st.color};flex-shrink:0">${st.label}</span>
+      </div>`;
+    }).join('');
+    return `<div class="month-group"><div class="month-label">${monthLabel}</div>${itemsHtml}</div>`;
+  }).join('');
+  const noDateHtml=withoutDate.length>0?`
+    <div class="month-group">
+      <div class="month-label">Geen datum gepland</div>
+      ${withoutDate.map(item=>{
+        const st=STATUSES[item.status||'nieuw']||STATUSES.nieuw;
+        return `<div class="planning-item" onclick="openIntake('${item.id}')">
+          <div class="planning-date"><div class="planning-day" style="font-size:13px;color:var(--muted)">—</div></div>
+          <div class="planning-info">
+            <div class="planning-naam">${item.naam||'Naamloos'}</div>
+            <div class="planning-adres">${item.adres||''}</div>
+          </div>
+          <span class="status-badge" style="background:${st.bg};color:${st.color};flex-shrink:0">${st.label}</span>
+        </div>`;
+      }).join('')}
+    </div>`:'';
+  document.getElementById('main-content').innerHTML=`
+    <div style="background:#fff;border-bottom:1px solid var(--border);padding:calc(env(safe-area-inset-top,0px)+14px) 16px 0">
+      <button class="planning-back" onclick="APP.view='home';refresh()">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Planning
+      </button>
+    </div>
+    <div style="padding-bottom:40px">
+      ${idx.length===0
+        ?'<div class="no-planning">Nog geen intakes opgeslagen.</div>'
+        :monthsHtml+noDateHtml}
+    </div>`;
+}
+
+/* ---- EMAIL ---- */
+function openEmailSheet(){ document.getElementById('email-sheet').classList.add('open'); }
+function closeEmailSheet(){ document.getElementById('email-sheet').classList.remove('open'); }
+
+function sendEmail(type){
+  const k=S.klant, l=S.logistiek, T=calcTotalen();
+  const ef=n=>'\u20ac\u00a0'+n.toFixed(2).replace('.',',');
+  const fmtD=d=>{ if(!d) return ''; const [y,m,day]=d.split('-'); return day+'-'+m+'-'+y; };
+  const naam=k.naam||'heer/mevrouw';
+  const adres=k.adres||'';
+  const datum=fmtD(l.uitvoerdatum);
+  let subject='', body='';
+
+  if(type==='offerte'){
+    subject='Offerte ontruiming '+adres;
+    body=['Geachte '+naam+',','','Bijgaand ontvangt u onze vrijblijvende offerte voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' op '+datum:'')+'.','','Het offertetotaal bedraagt '+ef(T.tot)+' incl. BTW.','','Graag ontvangen wij uw akkoord. Heeft u vragen, neem dan gerust contact op.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
+  } else if(type==='factuur'){
+    subject='Factuur ontruiming '+adres;
+    body=['Geachte '+naam+',','','Bijgaand ontvangt u de factuur voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' uitgevoerd op '+datum:'')+'.','','Factuurbedrag: '+ef(T.tot)+' incl. BTW.','IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Gelieve het bedrag binnen 15 dagen over te maken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
+  } else if(type==='bevestiging'){
+    subject='Bevestiging opdracht ontruiming '+adres;
+    body=['Geachte '+naam+',','','Hierbij bevestigen wij de opdracht voor de ontruiming van'+(adres?' '+adres:'')+(datum?' op '+datum:'')+'.','','Wij komen op de afgesproken datum bij u langs. Mocht u vragen hebben, neem gerust contact op.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
+  } else if(type==='herinnering'){
+    subject='Betalingsherinnering factuur ontruiming '+adres;
+    body=['Geachte '+naam+',','','Wij willen u vriendelijk herinneren aan de openstaande factuur voor de ontruiming'+(adres?' van '+adres:'')+'.','','Openstaand bedrag: '+ef(T.tot),'IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Wij verzoeken u het bedrag binnen 7 dagen over te maken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel].join('\n');
+  }
+
+  const to=encodeURIComponent(k.email||'');
+  const sub=encodeURIComponent(subject);
+  const bod=encodeURIComponent(body);
+  window.location.href=`mailto:${to}?subject=${sub}&body=${bod}`;
+}
 
 /* ---- INIT ---- */
 refresh();
