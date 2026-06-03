@@ -2069,6 +2069,40 @@ function goFacturen(){
   refresh();
 }
 
+async function downloadFactuur(id, event){
+  event.stopPropagation();
+  // Load the intake
+  const data = loadIntakeFromStorage(id);
+  if(!data) return;
+  // Temporarily swap state
+  const prevS = JSON.parse(JSON.stringify(S));
+  const prevId = APP.id;
+  Object.assign(S, data);
+  APP.id = id;
+  // Generate factuur PDF
+  showToast('Factuur aanmaken...');
+  await new Promise(r=>setTimeout(r,0));
+  if(!window.jspdf||!window.QRCode){
+    await Promise.all([
+      !window.jspdf  ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js') : Promise.resolve(),
+      !window.QRCode ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js') : Promise.resolve(),
+    ]);
+  }
+  const blob = await generateFactuurPDF(true);
+  // Restore state
+  Object.assign(S, prevS);
+  APP.id = prevId;
+  if(!blob){ showToast('Mislukt'); return; }
+  const naam = (data.klant?.naam||'factuur').replace(/[^a-z0-9]/gi,'_');
+  const nr = (data.factuur?.nummer||'').replace('/','_');
+  const filename = 'Factuur_'+nr+'_'+naam+'.pdf';
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+  showToast('Factuur gedownload');
+}
+
 function toggleBetaald(id, event){
   event.stopPropagation();
   const idx = getIndex();
@@ -2094,12 +2128,24 @@ function renderFacturen(){
   const openstaand = metFactuur.filter(i=>!i.factuurMeta.betaald).reduce((s,i)=>s+i.factuurMeta.bedrag,0);
   const totaal = metFactuur.reduce((s,i)=>s+i.factuurMeta.bedrag,0);
 
-  const itemsHtml = metFactuur.length===0
-    ? '<div class="facturen-empty">Nog geen facturen aangemaakt.<br>Genereer een factuur via een intake.</div>'
-    : metFactuur.map(item=>{
-        const m=item.factuurMeta;
-        const betaald=m.betaald||false;
-        return `<div class="factuur-item" onclick="openIntake('${item.id}')">
+  let itemsHtml = '';
+  if(metFactuur.length===0){
+    itemsHtml='<div class="facturen-empty">Nog geen facturen aangemaakt.<br>Genereer een factuur via een intake.</div>';
+  } else {
+    let currentYear = null;
+    metFactuur.forEach(item=>{
+      const m=item.factuurMeta;
+      const betaald=m.betaald||false;
+      const year = m.datum ? m.datum.slice(0,4) : '—';
+      if(year !== currentYear){
+        if(currentYear !== null){
+          itemsHtml += `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg)"><div style="flex:1;height:1px;background:var(--border)"></div><span style="font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap">${year}</span><div style="flex:1;height:1px;background:var(--border)"></div></div>`;
+        } else {
+          itemsHtml += `<div style="padding:10px 16px 4px"><span style="font-size:11px;font-weight:600;color:var(--muted)">${year}</span></div>`;
+        }
+        currentYear = year;
+      }
+      itemsHtml += `<div class="factuur-item" onclick="openIntake('${item.id}')">
           <div class="factuur-item-info">
             <div class="factuur-item-naam">${item.naam||'Naamloos'}</div>
             <div class="factuur-item-meta">${m.nummer||''} &middot; ${fmtD(m.datum)} &middot; ${ef(m.bedrag||0)}</div>
@@ -2107,8 +2153,12 @@ function renderFacturen(){
           <button class="betaal-toggle ${betaald?'paid':'open'}" onclick="toggleBetaald('${item.id}',event)">
             ${betaald?'&#10003; Betaald':'Openstaand'}
           </button>
+          <button onclick="downloadFactuur('${item.id}',event)" style="background:none;border:none;padding:8px 6px;cursor:pointer;color:var(--muted);flex-shrink:0" title="Download factuur">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
         </div>`;
-      }).join('');
+    });
+  }
 
   document.getElementById('main-content').innerHTML=`
     <div style="background:#fff;border-bottom:1px solid var(--border);padding:calc(env(safe-area-inset-top,0px)+14px) 16px 0">
