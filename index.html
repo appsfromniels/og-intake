@@ -2046,7 +2046,7 @@ function openWithGmail(){
   closeMailChoice();
   if(!_pendingMail) return;
   const {to, subject, body} = _pendingMail;
-  const url = 'https://mail.google.com/mail/u/0/?view=cm&fs=1'
+  const url = 'https://mail.google.com/mail/?view=cm&fs=1'
     + '&to=' + encodeURIComponent(to)
     + '&su=' + encodeURIComponent(subject)
     + '&body=' + encodeURIComponent(body);
