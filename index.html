@@ -353,6 +353,31 @@ td input:focus{border-color:var(--g500)}
     <button class="sheet-cancel" onclick="closeEmailSheet()">Annuleren</button>
   </div>
 </div>
+
+<div class="sheet-overlay" id="mail-choice-sheet" onclick="if(event.target===this)closeMailChoice()">
+  <div class="email-sheet">
+    <div class="sheet-title">Openen met</div>
+    <button class="email-option" id="gmail-btn" onclick="openWithGmail()">
+      <div class="email-option-icon" style="background:#FEE8E7">
+        <svg viewBox="0 0 24 24" fill="none" stroke="none"><path d="M20 4H4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" fill="#EA4335"/><path d="M2 6l10 7 10-7" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <div class="email-option-title">Gmail</div>
+        <div class="email-option-sub">Opent Gmail met alles ingevuld</div>
+      </div>
+    </button>
+    <button class="email-option" id="other-mail-btn" onclick="openWithOtherMail()">
+      <div class="email-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--g600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      </div>
+      <div>
+        <div class="email-option-title">Andere mailapp</div>
+        <div class="email-option-sub">Outlook, Apple Mail, etc.</div>
+      </div>
+    </button>
+    <button class="sheet-cancel" onclick="closeMailChoice()">Annuleren</button>
+  </div>
+</div>
 <div class="confirm-overlay" id="confirm-overlay">
   <div class="confirm-box">
     <div class="confirm-title">Intake verwijderen</div>
@@ -2005,6 +2030,34 @@ function renderQRPreview(){
 })();
 
 
+
+
+/* ---- MAIL CHOICE ---- */
+let _pendingMail = null;
+
+function openMailChoice(mailData){
+  _pendingMail = mailData;
+  document.getElementById('mail-choice-sheet').classList.add('open');
+}
+function closeMailChoice(){
+  document.getElementById('mail-choice-sheet').classList.remove('open');
+}
+function openWithGmail(){
+  closeMailChoice();
+  if(!_pendingMail) return;
+  const {to, subject, body} = _pendingMail;
+  const url = 'https://mail.google.com/mail/?view=cm&fs=1'
+    + '&to=' + encodeURIComponent(to)
+    + '&su=' + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(body);
+  window.open(url, '_blank');
+}
+function openWithOtherMail(){
+  closeMailChoice();
+  if(!_pendingMail) return;
+  const {to, subject, body} = _pendingMail;
+  window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
 
 /* ---- FACTUREN OVERZICHT ---- */
 function goFacturen(){
