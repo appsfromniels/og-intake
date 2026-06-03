@@ -556,18 +556,20 @@ function renderHome(){
         <div class="empty-icon">📋</div>
         <div class="empty-text">Nog geen intakes opgeslagen.<br>Tik op Nieuwe intake om te beginnen.</div>
        </div>`
-    : idx.map(item => `
+    : idx.map(item => {
+        const st = STATUSES[item.status||'nieuw']||STATUSES.nieuw;
+        return `
       <div class="intake-item" onclick="openIntake('${item.id}')">
-        <div class="intake-avatar">${initials(item.naam||'?')}</div>
         <div class="intake-info">
           <div class="intake-naam">${item.naam||'Naamloos'}</div>
           <div class="intake-meta">${[item.adres, item.datum?fmtDate(item.datum):''].filter(Boolean).join(' · ')||'Geen datum'}</div>
         </div>
-        <div class="intake-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-        <button onclick="confirmDelete('${item.id}',event)" style="background:none;border:none;padding:8px 4px;cursor:pointer;color:var(--muted)">
+        <span class="status-badge" style="background:${st.bg};color:${st.color};flex-shrink:0">${st.label}</span>
+        <button onclick="confirmDelete('${item.id}',event)" style="background:none;border:none;padding:8px 6px;cursor:pointer;color:var(--muted);flex-shrink:0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
         </button>
-      </div>`).join('');
+      </div>`;
+      }).join('');
 
   document.getElementById('main-content').innerHTML = `
     <div class="home-view">
