@@ -404,14 +404,14 @@ const TABS = [
 const MEENEMEN = ['Breekijzer','Behangstomer','Touw & Blok','Bikhamer','Sleutels','Verf','Saus','Tapijtklauw'];
 
 const TAKEN_LIST = [
-  ['meubels','Meubels & kleingoed verwijderen'],
-  ['vloerdelen','Vloerdelen / laminaat verwijderen'],
-  ['gordijnen','Gordijnen verwijderen'],
-  ['rails','Rails verwijderen'],
-  ['tapijttrap','Tapijt op trap verwijderen'],
-  ['lampen','Lampen verwijderen'],
-  ['schoonmaken','Schoonmaken woning'],
-  ['gaten','Alle gaten vullen met muurvuller'],
+  ['meubels','Meubels & kleingoed','Wij verwijderen de meubels en het kleingoed.'],
+  ['vloerdelen','Vloerdelen / laminaat','Vloerdelen of laminaat wordt verwijderd.'],
+  ['gordijnen','Gordijnen','Gordijnen worden verwijderd.'],
+  ['rails','Rails','Gordijnrails worden verwijderd.'],
+  ['tapijttrap','Tapijt op trap','Tapijt op de trap wordt verwijderd.'],
+  ['lampen','Lampen','Lampen worden verwijderd.'],
+  ['schoonmaken','Schoonmaken','De woning wordt schoongemaakt.'],
+  ['gaten','Gaten vullen','Alle gaten worden gevuld met muurvuller.'],
 ];
 
 const BEDRIJF = {
@@ -438,15 +438,16 @@ function emptyState(){
     tab: 0,
     klant: { naam:'', adres:'', etage:'', telefoon:'', email:'', datumOfferte:'', opleverdatum:'', door:'' },
     type: { woning:'', klant:'', extra:[], schoonmaak:'' },
-    taken: { meubels:null,vloerdelen:null,gordijnen:null,rails:null,tapijttrap:null,lampen:null,schoonmaken:null,gaten:null },
+    taken: { meubels:false,vloerdelen:false,gordijnen:false,rails:false,tapijttrap:false,lampen:false,schoonmaken:false,gaten:false },
+    takenTeksten: { meubels:'Wij verwijderen de meubels en het kleingoed.',vloerdelen:'Vloerdelen of laminaat wordt verwijderd.',gordijnen:'Gordijnen worden verwijderd.',rails:'Gordijnrails worden verwijderd.',tapijttrap:'Tapijt op de trap wordt verwijderd.',lampen:'Lampen worden verwijderd.',schoonmaken:'De woning wordt schoongemaakt.',gaten:'Alle gaten worden gevuld met muurvuller.' },
     verhuislift: { gebruik:false, dag:'', uur:'', ontheffing:false },
     grofvuil: { straat:false, dag:'', klantrijdt:false },
-    logistiek: { personen:'', dagen:'', uren:'', uitvoerdatum:'', reden:'', kratten:'', m3handel:'', m3grofvuil:'', waarde:'', kosten:'' },
+    logistiek: { personen:'', dagen:'', uren:'', uitvoerdatum:'', uitvoerdatumEind:'', reden:'', kratten:'', m3handel:'', m3grofvuil:'', waarde:'', kosten:'' },
     kosten: { busUren:'', liftUren:'', ontheffing:'', afvalKg:'', mindering:'', minder_auto:true },
     betaling: { type:'incl', methode:'', voldaan:false },
     emailBevestiging: false,
     meenemen: [],
-    personeel: [{ naam:'', datum:'', tarief:'39.50', begin:'', eind:'', pauze:'', paraaf:'', betaaldatum:'' }],
+    personeel: [{ naam:'', datum:'', datumEind:'', tarief:'39.50', begin:'', eind:'', pauze:'', paraaf:'', betaaldatum:'' }],
     notities: '',
     fotos: [],
     offerteNotities: '',
@@ -455,7 +456,7 @@ function emptyState(){
     factuur: {
       nummer: '',
       datum: '',
-      betalingstermijn: '15',
+      betalingstermijn: '14',
       aanhef: '',
       projectnaam: '',
       projectbeschrijving: 'Ontruiming',
@@ -745,7 +746,8 @@ function renderOpdracht(){
     ${cardH('info','Uitvoering')}
     <div class="card-body">
       <div class="grid2">
-        ${fieldEl('Uitvoerdatum', inp('l-uitv',S.logistiek.uitvoerdatum,'','date'))}
+        ${fieldEl('Uitvoerdatum (van)', inp('l-uitv',S.logistiek.uitvoerdatum,'','date'))}
+        ${fieldEl('Uitvoerdatum (t/m, optioneel)', inp('l-uitv-end',S.logistiek.uitvoerdatumEind,'','date'))}
         ${fieldEl('Reden ontruiming', inp('l-reden',S.logistiek.reden,'Bijv. overlijden...'))}
       </div>
       <div class="grid2">
@@ -761,17 +763,19 @@ function renderKlus(){
   return `
   <div class="card">
     ${cardH('list','Details klus')}
-    <div class="card-body" style="padding-bottom:6px">
-      ${TAKEN_LIST.map(([k,lbl])=>{
-        const v=S.taken[k];
-        return `<div class="toggle-row">
-          <span class="toggle-label">${lbl}</span>
-          <div class="toggle-wrap">
-            <div class="tog${v===true?' ja':''}" onclick="S.taken['${k}']=S.taken['${k}']===true?null:true;refresh()">JA</div>
-            <div class="tog${v===false?' nee':''}" onclick="S.taken['${k}']=S.taken['${k}']===false?null:false;refresh()">NEE</div>
-          </div>
-        </div>`;
-      }).join('')}
+    <div class="card-body" style="padding-bottom:10px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Tik aan wat er gedaan wordt</div>
+      <div class="chip-group" style="margin-bottom:12px">
+        ${TAKEN_LIST.map(([k,lbl])=>`
+          <div class="chip${S.taken[k]?' active':''}" onclick="toggleTaak('${k}')">${lbl}</div>`).join('')}
+      </div>
+      ${TAKEN_LIST.filter(([k])=>S.taken[k]).map(([k,lbl,def])=>`
+        <div style="margin-bottom:8px">
+          <label style="font-size:11px;color:var(--g600);font-weight:500;display:block;margin-bottom:4px">${lbl}</label>
+          <textarea style="width:100%;padding:8px 10px;font-size:13px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;resize:vertical;min-height:48px;line-height:1.4;color:var(--text)"
+            oninput="S.takenTeksten['${k}']=this.value;scheduleAutoSave()"
+            onblur="scheduleAutoSave()">${esc(S.takenTeksten[k]||def)}</textarea>
+        </div>`).join('')}
     </div>
   </div>
   <div class="card">
@@ -868,13 +872,7 @@ function renderKlus(){
       </div>
     </div>
   </div>
-  <div class="card">
-    ${cardH('mail','E-mailbevestiging')}
-    <div class="card-body">
-      <div class="chip-group">
-        <div class="chip${S.emailBevestiging?' active':''}" onclick="S.emailBevestiging=true;refresh()">Ja, versturen</div>
-        <div class="chip${!S.emailBevestiging?' active':''}" onclick="S.emailBevestiging=false;refresh()">Nee</div>
-      </div>
+  
     </div>
   </div>`;
 }
@@ -916,7 +914,7 @@ function renderKosten(){
       <div class="divider"></div>
       <div class="cost-section">
         <div class="cost-row">
-          <div class="cost-name" style="color:#1a5552;font-weight:500">25% waarde inboedel in mindering</div>
+          <div class="cost-name" style="color:#1a5552;font-weight:500">33% waarde inboedel in mindering</div>
           <div class="cost-num"><input type="number" value="${esc(k.mindering)}" placeholder="€" id="k-min" style="border-color:#a8e2df;color:#1a5552" oninput="S.kosten.mindering=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
           <div class="cost-result" style="color:#1a5552">−<span id="tot-min">${eu(T.min)}</span></div>
         </div>
@@ -961,7 +959,7 @@ function renderKosten(){
       <div class="pers-wrap">
         <table>
           <thead><tr>
-            <th>Naam</th><th>Datum</th><th>€/u</th><th>Begin</th><th>Eind</th><th>Pauze</th><th>Uren</th><th>Bedrag</th><th></th>
+            <th>Naam</th><th>Datum van</th><th>Datum t/m</th><th>€/u</th><th>Begin</th><th>Eind</th><th>Pauze</th><th>Uren</th><th>Bedrag</th><th></th>
           </tr></thead>
           <tbody id="pers-body">
             ${S.personeel.map((p,i)=>{
@@ -970,6 +968,7 @@ function renderKosten(){
               return `<tr>
                 <td><input value="${esc(p.naam)}" placeholder="Naam" oninput="S.personeel[${i}].naam=this.value"></td>
                 <td><input type="date" value="${esc(p.datum)}" oninput="S.personeel[${i}].datum=this.value"></td>
+                <td><input type="date" value="${esc(p.datumEind||'')}" oninput="S.personeel[${i}].datumEind=this.value"></td>
                 <td><input type="number" value="${esc(p.tarief||39.5)}" style="width:54px" oninput="S.personeel[${i}].tarief=this.value" onblur="refresh();scheduleAutoSave()"></td>
                 <td><input type="time" value="${esc(p.begin)}" oninput="S.personeel[${i}].begin=this.value" onblur="refresh();scheduleAutoSave()"></td>
                 <td><input type="time" value="${esc(p.eind)}" oninput="S.personeel[${i}].eind=this.value" onblur="refresh();scheduleAutoSave()"></td>
@@ -982,7 +981,7 @@ function renderKosten(){
           </tbody>
         </table>
       </div>
-      <div class="add-row" onclick="S.personeel.push({naam:'',datum:'',tarief:'39.50',begin:'',eind:'',pauze:'',paraaf:'',betaaldatum:''});refresh()">
+      <div class="add-row" onclick="S.personeel.push({naam:'',datum:'',datumEind:'',tarief:'39.50',begin:'',eind:'',pauze:'',paraaf:'',betaaldatum:''});refresh()">
         ${icon('plus')} Medewerker toevoegen
       </div>
     </div>
@@ -1076,7 +1075,7 @@ function bindInputs(){
     ['k-naam','klant.naam'],['k-adres','klant.adres'],['k-etage','klant.etage'],
     ['k-tel','klant.telefoon'],['k-email','klant.email'],['k-datum','klant.datumOfferte'],
     ['k-opl','klant.opleverdatum'],['k-door','klant.door'],
-    ['l-uitv','logistiek.uitvoerdatum'],['l-reden','logistiek.reden'],
+    ['l-uitv','logistiek.uitvoerdatum'],['l-uitv-end','logistiek.uitvoerdatumEind'],['l-reden','logistiek.reden'],
     ['l-pers','logistiek.personen'],['l-dag','logistiek.dagen'],['l-uur','logistiek.uren'],
     ['l-kratten','logistiek.kratten'],['l-m3h','logistiek.m3handel'],
     ['l-m3g','logistiek.m3grofvuil'],['l-kost','logistiek.kosten'],
@@ -1128,6 +1127,16 @@ function renderNav(){
 
 function goTab(i){ S.tab=i; refresh(); document.querySelector('.content').scrollTop=0; }
 
+function toggleTaak(k){
+  S.taken[k] = !S.taken[k];
+  // Reset to default text when re-enabling
+  if(S.taken[k]){
+    const item = TAKEN_LIST.find(([id])=>id===k);
+    if(item && !S.takenTeksten[k]) S.takenTeksten[k] = item[2];
+  }
+  refresh(); scheduleAutoSave();
+}
+
 function toggleArr(path, val){
   const parts=path.split('.');
   let arr = parts.length===1?S[parts[0]]:S[parts[0]][parts[1]];
@@ -1146,7 +1155,7 @@ function showToast(msg){
 function onWaardeInput(val){
   S.logistiek.waarde = val;
   if(S.kosten.minder_auto !== false){
-    S.kosten.mindering = ((parseFloat(val)||0)*0.25).toFixed(2);
+    S.kosten.mindering = ((parseFloat(val)||0)*0.33).toFixed(2);
     const m = document.getElementById('k-min');
     if(m) m.value = S.kosten.mindering;
   }
@@ -1300,7 +1309,7 @@ async function generatePDFBlob(){
   if(T.lift>0) row('Verhuislift', ef(T.lift));
   if(T.onth>0) row('Ontheffing', ef(T.onth));
   if(T.afvl>0) row('Afval', ef(T.afvl));
-  if(T.min>0)  row('25% mindering inboedel', '-'+ef(T.min));
+  if(T.min>0)  row('33% mindering inboedel', '-'+ef(T.min));
   divider();
   row('Subtotaal', ef(T.sub));
   row('BTW 21%', ef(T.btw));
@@ -1491,7 +1500,7 @@ function renderFactuur(){
         ${fieldEl('Factuurnummer', '<input id="f-nr" value="'+esc(f.nummer)+'" placeholder="2026/0001" onblur="S.factuur.nummer=this.value;scheduleAutoSave()">')}
         ${fieldEl('Factuurdatum', '<input id="f-datum" type="date" value="'+esc(f.datum)+'" onblur="S.factuur.datum=this.value;scheduleAutoSave()">')}
       </div>
-      ${fieldEl('Betalingstermijn (dagen)', '<input id="f-term" type="number" value="'+esc(f.betalingstermijn)+'" placeholder="15" onblur="S.factuur.betalingstermijn=this.value;scheduleAutoSave()">')}
+      ${fieldEl('Betalingstermijn (dagen)', '<input id="f-term" type="number" value="'+esc(f.betalingstermijn)+'" placeholder="14" onblur="S.factuur.betalingstermijn=this.value;scheduleAutoSave()">')}
       ${fieldEl('T.a.v.', '<input id="f-aanhef" value="'+esc(f.aanhef)+'" placeholder="t.a.v. ..." onblur="S.factuur.aanhef=this.value;scheduleAutoSave()">')}
       ${fieldEl('Projectnaam', '<input id="f-proj" value="'+esc(f.projectnaam)+'" placeholder="Bijv. Keizersgracht 123" onblur="S.factuur.projectnaam=this.value;scheduleAutoSave()">')}
       ${fieldEl('Projectbeschrijving', '<input id="f-projb" value="'+esc(f.projectbeschrijving)+'" placeholder="Bijv. Ontruiming" onblur="S.factuur.projectbeschrijving=this.value;scheduleAutoSave()">')}
@@ -1606,7 +1615,7 @@ async function generateOffertePDF(blobOnly=false){
     k.naam ? 't.a.v. '+k.naam : '',
     k.adres ? 'Projectnaam: '+k.adres+(k.etage?' ('+k.etage+')':'') : '',
     'Projectbeschrijving: '+(t.woning||'Ontruiming'),
-    l.uitvoerdatum ? 'Gewenste uitvoerdatum: '+fmtD(l.uitvoerdatum) : '',
+    l.uitvoerdatum ? 'Gewenste uitvoerdatum: '+fmtD(l.uitvoerdatum)+(l.uitvoerdatumEind?' t/m '+fmtD(l.uitvoerdatumEind):'') : '',
   ].filter(Boolean);
   offInfo.forEach(line=>{ doc.text(line, 55, y); y+=5; });
 
@@ -1651,8 +1660,25 @@ async function generateOffertePDF(blobOnly=false){
   y+=4;
 
   // ── TOTALEN ──
-  const totaalRows = [
-    T.min>0 ? ['25% mindering inboedel','-'+ef(T.min)] : null,
+  // ── WAT WIJ GAAN DOEN ──
+  const actieveTaken = TAKEN_LIST.filter(([k])=>S.taken[k]);
+  if(actieveTaken.length > 0 && y+30 < 265){
+    y += 4;
+    doc.setFillColor(236,250,249);
+    const watLines = actieveTaken.map(([k,lbl])=>S.takenTeksten[k]||'').filter(Boolean);
+    const watH = watLines.length * 5 + 10;
+    if(y + watH < 268){
+      doc.rect(pad, y, colR-pad, watH, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...teal);
+      doc.text('WAT WIJ GAAN DOEN', pad+3, y+5);
+      doc.setFont('helvetica','normal'); doc.setTextColor(...dark);
+      watLines.forEach((line,i)=>{ doc.text('• '+line, pad+3, y+10+(i*5)); });
+      y += watH + 6;
+    }
+  }
+
+    const totaalRows = [
+    T.min>0 ? ['33% mindering inboedel','-'+ef(T.min)] : null,
     ['Subtotaal excl. BTW', ef(T.sub)],
     ['BTW 21%', ef(T.btw)],
     ['__bold__Totaal incl. BTW', ef(T.tot)],
@@ -1787,7 +1813,7 @@ async function generateFactuurPDF(blobOnly=false){
     'Projectnaam: '+f.projectnaam,
     'Projectbeschrijving: '+f.projectbeschrijving,
     'Factuurnummer: '+f.nummer,
-    'Betalingstermijn: '+(f.betalingstermijn||15)+' dagen',
+    'Betalingstermijn: '+(f.betalingstermijn||14)+' dagen',
   ].filter(Boolean);
   factInfo.forEach(line=>{ doc.text(line, 55, y); y+=5; });
 
@@ -1924,6 +1950,18 @@ async function generateFactuurPDF(blobOnly=false){
     y += 32;
   }
 
+  // ── REVIEW KNOP ──
+  if(y < 265){
+    y += 4;
+    doc.setFillColor(236,250,249);
+    doc.roundedRect(pad, y, colR-pad, 14, 3, 3, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...teal);
+    doc.text('★ Laat een review achter', W/2, y+8.5, {align:'center'});
+    // Link will be added when URL is available
+    // doc.link(pad, y, colR-pad, 14, {url: REVIEW_URL});
+    y += 20;
+  }
+
   // ── AFSLUITING ──
   if(f.afsluitingszin && y<260){
     y += 6;
@@ -1998,10 +2036,19 @@ function renderQRPreview(){
     if(APP.view !== 'form') return;
     const dx = e.changedTouches[0].clientX - startX;
     const dy = e.changedTouches[0].clientY - startY;
-    // Only horizontal swipes (dx > dy to avoid scroll interference)
     if(Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    if(dx < 0 && S.tab < TABS.length - 1) goTab(S.tab + 1); // swipe left → next
-    if(dx > 0 && S.tab > 0) goTab(S.tab - 1);               // swipe right → prev
+    // Don't swipe if touch started inside a horizontally scrollable element
+    let el = e.target;
+    while(el && el !== content){
+      if(el.scrollWidth > el.clientWidth + 5){
+        const style = window.getComputedStyle(el);
+        const overflow = style.overflowX;
+        if(overflow === 'auto' || overflow === 'scroll') return;
+      }
+      el = el.parentElement;
+    }
+    if(dx < 0 && S.tab < TABS.length - 1) goTab(S.tab + 1);
+    if(dx > 0 && S.tab > 0) goTab(S.tab - 1);
   }, {passive: true});
 })();
 
@@ -2245,7 +2292,7 @@ async function sendEmail(type){
     S.factuurMeta={nummer:S.factuur.nummer,datum:S.factuur.datum,bedrag:fT.totaal,betaald:false};
     scheduleAutoSave();
     subject='Factuur ontruiming '+adres;
-    body=['Geachte '+naam+',','','Bijgaand ontvangt u de factuur voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' uitgevoerd op '+datum:'')+'.','','Factuurbedrag: '+ef(fT.totaal)+' incl. BTW.','IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Gelieve binnen 15 dagen te betalen.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
+    body=['Geachte '+naam+',','','Bijgaand ontvangt u de factuur voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' uitgevoerd op '+datum:'')+'.','','Factuurbedrag: '+ef(fT.totaal)+' incl. BTW.','IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Gelieve binnen 14 dagen te betalen.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
     blob=_cachedFactuurPdfBlob;
     filename='Factuur_'+(S.factuur.nummer||'').replace('/','_')+'_'+naamFile+'.pdf';
 
