@@ -1598,16 +1598,16 @@ async function generateOffertePDF(blobOnly=false){
   ];
   let iy=14;
   info.forEach(([lbl,val])=>{
-    if(lbl){ doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted); doc.text(lbl, 118, iy, {align:'right'}); }
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...dark); doc.text(val, 121, iy); iy+=5;
+    if(lbl){ doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted); doc.text(lbl, 128, iy, {align:'right'}); }
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...dark); doc.text(val, 131, iy); iy+=5;
   });
 
   // ── DATUM ──
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...dark);
-  doc.text('Amsterdam, '+today+'.', pad, 44);
+  doc.text('Amsterdam, '+today+'.', pad, 50);
 
   // ── OFFERTE HEADER BLOCK ──
-  let y=54;
+  let y=62;
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...dark);
   doc.text('OFFERTE', pad, y);
   doc.setFont('helvetica','normal');
@@ -1714,6 +1714,21 @@ async function generateOffertePDF(blobOnly=false){
     }
   }
 
+  // ── DISCLAIMER ──
+  if(y + 20 < 270){
+    y += 4;
+    doc.setDrawColor(210,210,210);
+    doc.setFillColor(250,250,250);
+    const disclLines = doc.splitTextToSize('Indien de vloerbedekking te zeer is vastgelijmd om de ontruiming binnen de tijd te laten plaatsvinden, dan zullen wij direct contact met u opnemen voor overleg. Dat geldt ook als we vermoeden dat er asbest in de vloerbedekking aanwezig is; we mogen de betreffende vloer dan niet verwijderen.', colR-pad-6);
+    const disclH = disclLines.length*4.5+8;
+    if(y+disclH < 272){
+      doc.rect(pad, y, colR-pad, disclH, 'FD');
+      doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(100,100,100);
+      disclLines.forEach((line,i)=>{ doc.text(line, pad+3, y+6+(i*4.5)); });
+      y += disclH+6;
+    }
+  }
+
   // ── AFSLUITING ──
   const afsluiting = 'Wij hopen u hiermee een duidelijk beeld te hebben gegeven. Graag ontvangen wij uw akkoord.\n\nMet hartelijke groet,\nFrank van Haaren, Robin van de Water';
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...dark);
@@ -1792,19 +1807,19 @@ async function generateFactuurPDF(blobOnly=false){
   info.forEach(([lbl,val])=>{
     if(lbl){
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted);
-      doc.text(lbl, 118, iy, {align:'right'});
+      doc.text(lbl, 128, iy, {align:'right'});
     }
     doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...dark);
-    doc.text(val, 121, iy);
+    doc.text(val, 131, iy);
     iy += 5;
   });
 
   // ── DATUM + STAD ──
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...dark);
-  doc.text('Amsterdam, '+fmtD(f.datum||new Date().toISOString().slice(0,10))+'.', pad, 44);
+  doc.text('Amsterdam, '+fmtD(f.datum||new Date().toISOString().slice(0,10))+'.', pad, 50);
 
   // ── FACTUUR HEADER BLOCK ──
-  let y = 54;
+  let y = 62;
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...dark);
   doc.text('FACTUUR', pad, y);
   doc.setFont('helvetica','normal');
@@ -1957,8 +1972,7 @@ async function generateFactuurPDF(blobOnly=false){
     doc.roundedRect(pad, y, colR-pad, 14, 3, 3, 'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...teal);
     doc.text('★ Laat een review achter', W/2, y+8.5, {align:'center'});
-    // Link will be added when URL is available
-    // doc.link(pad, y, colR-pad, 14, {url: REVIEW_URL});
+    doc.link(pad, y, colR-pad, 14, {url: 'https://g.page/r/CWtCb16fIg_EEBM/review'});
     y += 20;
   }
 
