@@ -403,25 +403,19 @@ const TABS = [
 
 
 const EXTRA_TAKEN_LIST = [
-  ['meubels_basis',        'Meubels leeggeruimd',           'De woning leeggeruimd zal worden van alle meubels en kleingoed.'],
+  ['berging_schuur',       'Berging/schuur leeg',            'Berging/schuur wordt leeg opgeleverd.'],
   ['lampen_gord_rails',    'Lampen, gordijnen & rails',      'De lampen, gordijnen en gordijnrails zullen worden verwijderd.'],
   ['tuin_schuur',          'Tuin & schuur leeg',             'De tuin en schuur worden leeg opgeleverd.'],
   ['spullen_opgekocht',    'Bruikbare spullen opgekocht',    'Bruikbare waardevolle spullen worden door ons opgekocht.'],
+  ['herbestemming',        'Bruikbare spullen herbestemming','Bruikbare spullen zullen een herbestemming krijgen.'],
   ['vloer_blijft',         'Vloerbedekking blijft',          'De vloerbedekking blijft achter in de woning.'],
   ['bezemschoon',          'Bezemschoon opgeleverd',         'De woning wordt bezemschoon opgeleverd.'],
   ['twee_fases',           'Twee fases (verhuizing)',         'De woning leeggeruimd zal worden van alle meubelen en kleingoed, in twee fases i.v.m. de verhuizing naar de nieuwe woning.'],
   ['verhuizing_opslag',    'Spullen naar nieuwe woning',     'De door u aangewezen spullen zullen eerst verhuisd worden naar de nieuwe woning en evt. een opslag.'],
   ['milieustraat_adam',    'Afval milieustraat Amsterdam',   'Alle afval zal categorisch worden gestort op de milieustraat te Amsterdam.'],
   ['milieustraat_zoet',    'Afval milieustraat Zoetermeer',  'Alle afval zal categorisch worden gestort op de milieustraat te Zoetermeer, of per afspraak worden opgehaald.'],
-  ['vloer_lampen',         'Vloerbedekking & lampen weg',    'Vloerbedekking en lampen worden verwijderd.'],
-  ['vloer_ondervloer',     'Vloer & ondervloer verwijderd',  'Vloerbedekking en ondervloer worden uit de woning gehaald.'],
   ['vaste_kasten',         'Vaste kasten blijven',           'Vaste kasten, e.a. interieur vastgemaakt aan de muur/ingebouwd e.d. worden niet verwijderd.'],
-  ['herbestemming',        'Bruikbare spullen herbestemming','Bruikbare spullen zullen een herbestemming krijgen.'],
-  ['bezemschoon_verhuurder','Bezemschoon naar wens verhuurder','De woning wordt bezemschoon opgeleverd en naar de wensen van de verhuurder.'],
-  ['bezemschoon_wensen',   'Bezemschoon naar uw wensen',    'De woning wordt bezemschoon opgeleverd en naar uw wensen.'],
   ['prijs_aanpassen',      'Prijs evt. naar beneden',        'Indien we minder werk hebben kunnen we de offerteprijs nog naar beneden aanpassen.'],
-  ['berging_schuur',       'Berging/schuur leeg',            'Berging/schuur wordt leeg opgeleverd.'],
-  ['lampen_raambekleding', 'Lampen & raambekleding weg',     'Lampen en raambekleding worden verwijderd.'],
   ['lam_raam_blijft',      'Lampen & raambekleding blijven', 'Lampen en raambekleding worden niet verwijderd.'],
   ['transport_optioneel',  'Transport optioneel',            'Optioneel is het transporteren van de spullen die u zou willen behouden naar de andere woning/een opslag. De kosten liggen buiten deze offerteberekening, tenzij ze binnen de ingeschatte werktijd vallen.'],
   ['tuin_garage',          'Tuin & garage leeggeruimd',      'Tuin en garage worden leeggeruimd.'],
@@ -480,6 +474,7 @@ function emptyState(){
     offerteNotities: '',
     extraTaken: {},
     extraTakenTeksten: {},
+    aangepasteZinnen: [],
     status: 'nieuw',
     factuurMeta: null,
     factuur: {
@@ -793,10 +788,12 @@ function renderKlus(){
   <div class="card">
     ${cardH('list','Details klus')}
     <div class="card-body" style="padding-bottom:10px">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Tik aan wat er gedaan wordt</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Tik aan wat er gedaan wordt — geselecteerde zinnen verschijnen op de offerte</div>
       <div class="chip-group" style="margin-bottom:12px">
         ${TAKEN_LIST.map(([k,lbl])=>`
           <div class="chip${S.taken[k]?' active':''}" onclick="toggleTaak('${k}')">${lbl}</div>`).join('')}
+        ${EXTRA_TAKEN_LIST.map(([k,lbl])=>`
+          <div class="chip${(S.extraTaken||{})[k]?' active':''}" onclick="toggleExtraTaak('${k}')">${lbl}</div>`).join('')}
       </div>
       ${TAKEN_LIST.filter(([k])=>S.taken[k]).map(([k,lbl,def])=>`
         <div style="margin-bottom:8px">
@@ -805,12 +802,6 @@ function renderKlus(){
             oninput="S.takenTeksten['${k}']=this.value;scheduleAutoSave()"
             onblur="scheduleAutoSave()">${esc(S.takenTeksten[k]||def)}</textarea>
         </div>`).join('')}
-
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin:14px 0 8px">Extra zinnen voor offerte</div>
-      <div class="chip-group" style="margin-bottom:12px">
-        ${EXTRA_TAKEN_LIST.map(([k,lbl])=>`
-          <div class="chip${(S.extraTaken||{})[k]?' active':''}" onclick="toggleExtraTaak('${k}')">${lbl}</div>`).join('')}
-      </div>
       ${EXTRA_TAKEN_LIST.filter(([k])=>(S.extraTaken||{})[k]).map(([k,lbl,def])=>`
         <div style="margin-bottom:8px">
           <label style="font-size:11px;color:var(--g600);font-weight:500;display:block;margin-bottom:4px">${lbl}</label>
@@ -818,7 +809,18 @@ function renderKlus(){
             oninput="if(!S.extraTakenTeksten)S.extraTakenTeksten={};S.extraTakenTeksten['${k}']=this.value;scheduleAutoSave()"
             onblur="scheduleAutoSave()">${esc((S.extraTakenTeksten||{})[k]||def)}</textarea>
         </div>`).join('')}
-    </div>
+      ${(S.aangepasteZinnen||[]).map((zin,i)=>`
+        <div style="margin-bottom:8px;display:flex;gap:6px;align-items:flex-start">
+          <textarea style="flex:1;padding:8px 10px;font-size:13px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;resize:vertical;min-height:48px;line-height:1.4;color:var(--text)"
+            placeholder="Typ hier een eigen zin..."
+            oninput="S.aangepasteZinnen[${i}]=this.value;scheduleAutoSave()"
+            onblur="scheduleAutoSave()">${esc(zin)}</textarea>
+          <button onclick="S.aangepasteZinnen.splice(${i},1);refresh();scheduleAutoSave()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;padding:6px;flex-shrink:0">×</button>
+        </div>`).join('')}
+      <button onclick="if(!S.aangepasteZinnen)S.aangepasteZinnen=[];S.aangepasteZinnen.push('');refresh()" style="display:flex;align-items:center;gap:6px;padding:9px 14px;background:var(--g50);border:1.5px dashed var(--g200);border-radius:var(--rs);font-size:13px;font-weight:500;color:var(--g700);cursor:pointer;margin-top:4px">
+        ${icon('plus')} Eigen zin toevoegen
+      </button>
+    </div></div>
   </div>
   <div class="card">
     ${cardH('crane','Verhuislift')}
@@ -1717,13 +1719,14 @@ async function generateOffertePDF(blobOnly=false){
   // ── WAT WIJ GAAN DOEN ──
   const actieveTaken = TAKEN_LIST.filter(([k])=>S.taken[k]);
   const actieveExtra = EXTRA_TAKEN_LIST.filter(([k])=>(S.extraTaken||{})[k]);
-  if(actieveTaken.length > 0 || actieveExtra.length > 0){
+  if(actieveTaken.length > 0 || actieveExtra.length > 0 || (S.aangepasteZinnen||[]).length > 0){
     if(y + 20 > 265){ doc.addPage(); y = 22; }
     y += 4;
     doc.setFillColor(236,250,249);
     const watLines = [
       ...actieveTaken.map(([k])=>S.takenTeksten[k]||''),
-      ...actieveExtra.map(([k,,def])=>(S.extraTakenTeksten||{})[k]||def||'')
+      ...actieveExtra.map(([k,,def])=>(S.extraTakenTeksten||{})[k]||def||''),
+      ...(S.aangepasteZinnen||[])
     ].filter(Boolean);
     const watH = watLines.length * 5 + 10;
     if(y + watH < 268){
