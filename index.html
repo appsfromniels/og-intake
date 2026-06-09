@@ -494,7 +494,7 @@ function initSupabase(){
   try {
     if(!window.supabase) { console.error('Supabase library not loaded'); return; }
     sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log('Supabase client initialized');
+    console.log('Supabase client initialized:', !!sbClient);
   } catch(e) { console.error('Supabase init failed', e); }
 }
 
@@ -2612,7 +2612,8 @@ async function doLogin(){
     await doFullSync();
     refresh();
   } catch(e) {
-    err.textContent = 'Inloggen mislukt: ' + (e.message || 'controleer e-mail en wachtwoord.');
+    console.error('Login error:', e);
+    err.textContent = 'Fout: ' + JSON.stringify(e.message || e);
     btn.disabled = false;
     btn.textContent = 'Inloggen';
   }
