@@ -472,6 +472,7 @@ function emptyState(){
     notities: '',
     fotos: [],
     offerteNotities: '',
+    disclaimer: 'Indien de vloerbedekking te zeer is vastgelijmd om de ontruiming binnen de tijd te laten plaatsvinden, dan zullen wij direct contact met u opnemen voor overleg. Dat geldt ook als we vermoeden dat er asbest in de vloerbedekking aanwezig is; we mogen de betreffende vloer dan niet verwijderen.',
     extraTaken: {},
     extraTakenTeksten: {},
     aangepasteZinnen: [],
@@ -1095,6 +1096,17 @@ function renderOverzicht(){
   </div>
 
     <div class="card">
+    ${cardH('info','Disclaimer offerte')}
+    <div class="card-body">
+      <div class="field">
+        <label>Wordt automatisch onderaan de offerte geplaatst</label>
+        <textarea id="disclaimer" rows="4" style="font-size:12px"
+          onblur="S.disclaimer=this.value;scheduleAutoSave()">${esc(S.disclaimer||'')}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
     ${cardH('check','Status')}
     <div class="card-body">
       <div class="status-selector">
@@ -1779,9 +1791,9 @@ async function generateOffertePDF(blobOnly=false){
   }
 
   // ── DISCLAIMER (always included, new page if needed) ──
-  {
+  if(S.disclaimer && S.disclaimer.trim()){
     y += 4;
-    const disclText = 'Indien de vloerbedekking te zeer is vastgelijmd om de ontruiming binnen de tijd te laten plaatsvinden, dan zullen wij direct contact met u opnemen voor overleg. Dat geldt ook als we vermoeden dat er asbest in de vloerbedekking aanwezig is; we mogen de betreffende vloer dan niet verwijderen.';
+    const disclText = S.disclaimer || 'Indien de vloerbedekking te zeer is vastgelijmd om de ontruiming binnen de tijd te laten plaatsvinden, dan zullen wij direct contact met u opnemen voor overleg. Dat geldt ook als we vermoeden dat er asbest in de vloerbedekking aanwezig is; we mogen de betreffende vloer dan niet verwijderen.';
     const disclLines = doc.splitTextToSize(disclText, colR-pad-6);
     const disclH = disclLines.length*4.5+8;
     if(y + disclH > 272){ doc.addPage(); y = 22; }
