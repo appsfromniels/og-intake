@@ -487,30 +487,30 @@ const LOGO_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOUAAABTCAYAAABg
 /* ---- SUPABASE ---- */
 const SUPABASE_URL = 'https://flehziehyudpydognm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_VV5MRfI7yzf78ow6f_-a7Q_vionvEoS';
-let supabase = null;
+let sbClient = null;
 let currentUser = null;
 
 function initSupabase(){
   try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   } catch(e) { console.error('Supabase init failed', e); }
 }
 
 async function getSession(){
-  if(!supabase) return null;
-  const { data } = await supabase.auth.getSession();
+  if(!sbClient) return null;
+  const { data } = await sbClient.auth.getSession();
   return data.session;
 }
 
 async function signIn(email, password){
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
   if(error) throw error;
   currentUser = data.user;
   return data.user;
 }
 
 async function signOut(){
-  await supabase.auth.signOut();
+  await sbClient.auth.signOut();
   currentUser = null;
   APP.view = 'login';
   refresh();
@@ -518,7 +518,7 @@ async function signOut(){
 
 /* ── SYNC ── */
 async function syncSaveIntake(id, s){
-  if(!supabase || !currentUser) return;
+  if(!sbClient || !currentUser) return;
   try {
     const row = {
       id,
@@ -530,20 +530,20 @@ async function syncSaveIntake(id, s){
       data: s,
       modified: Date.now()
     };
-    await supabase.from('intakes').upsert(row, { onConflict: 'id' });
+    await sbClient.from('intakes').upsert(row, { onConflict: 'id' });
   } catch(e) { console.error('Sync save failed', e); }
 }
 
 async function syncDeleteIntake(id){
-  if(!supabase || !currentUser) return;
-  try { await supabase.from('intakes').delete().eq('id', id); }
+  if(!sbClient || !currentUser) return;
+  try { await sbClient.from('intakes').delete().eq('id', id); }
   catch(e) { console.error('Sync delete failed', e); }
 }
 
 async function syncLoadAll(){
-  if(!supabase || !currentUser) return [];
+  if(!sbClient || !currentUser) return [];
   try {
-    const { data, error } = await supabase.from('intakes').select('*').order('modified', { ascending: false });
+    const { data, error } = await sbClient.from('intakes').select('*').order('modified', { ascending: false });
     if(error) throw error;
     return data || [];
   } catch(e) { console.error('Sync load failed', e); return []; }
