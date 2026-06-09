@@ -461,7 +461,7 @@ function emptyState(){
     type: { woning:'', klant:'', extra:[], schoonmaak:'' },
     taken: { meubels:false,vloerdelen:false,gordijnen:false,rails:false,tapijttrap:false,lampen:false,schoonmaken:false,gaten:false },
     takenTeksten: { meubels:'Wij verwijderen de meubels en het kleingoed.',vloerdelen:'Vloerdelen of laminaat wordt verwijderd.',gordijnen:'Gordijnen worden verwijderd.',rails:'Gordijnrails worden verwijderd.',tapijttrap:'Tapijt op de trap wordt verwijderd.',lampen:'Lampen worden verwijderd.',schoonmaken:'De woning wordt schoongemaakt.',gaten:'Alle gaten worden gevuld met muurvuller.' },
-    verhuislift: { gebruik:false, dag:'', uur:'', ontheffing:false },
+    verhuislift: { gebruik:false, dag:'', dagEind:'', uur:'', ontheffing:false },
     grofvuil: { straat:false, dag:'', klantrijdt:false },
     logistiek: { personen:'', dagen:'', uren:'', uitvoerdatum:'', uitvoerdatumEind:'', reden:'', kratten:'', m3handel:'', m3grofvuil:'', waarde:'', kosten:'' },
     kosten: { voorrijkosten:'', materiaalkosten:'', ontheffing:'', afvalKg:'', mindering:'', minder_auto:true },
@@ -835,7 +835,8 @@ function renderKlus(){
       </div>
       ${S.verhuislift.gebruik?`
       <div class="grid2">
-        ${fieldEl('Dag', inp('vl-dag',S.verhuislift.dag,'','date'))}
+        ${fieldEl('Dag (van)', inp('vl-dag',S.verhuislift.dag,'','date'))}
+        ${fieldEl('Dag (t/m, optioneel)', inp('vl-dag-end',S.verhuislift.dagEind,'','date'))}
         ${fieldEl('Tijdstip', inp('vl-uur',S.verhuislift.uur,'','time'))}
       </div>
       <div class="field">
@@ -1135,7 +1136,7 @@ function bindInputs(){
     ['l-pers','logistiek.personen'],['l-dag','logistiek.dagen'],['l-uur','logistiek.uren'],
     ['l-kratten','logistiek.kratten'],['l-m3h','logistiek.m3handel'],
     ['l-m3g','logistiek.m3grofvuil'],['l-kost','logistiek.kosten'],
-    ['vl-dag','verhuislift.dag'],['vl-uur','verhuislift.uur'],
+    ['vl-dag','verhuislift.dag'],['vl-dag-end','verhuislift.dagEind'],['vl-uur','verhuislift.uur'],
     ['gv-dag','grofvuil.dag'],['notities','notities']
   ];
   binds.forEach(([id,path])=>{
