@@ -2734,14 +2734,15 @@ function updateTotals(){
 /* ---- SERVICE WORKER (offline cache) ---- */
 if('serviceWorker' in navigator){
   const swCode = `
-    const CACHE='og-v4';
+    const CACHE='og-v5';
     self.addEventListener('install',e=>{self.skipWaiting()});
     self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim())});
     self.addEventListener('fetch',e=>{
       if(e.request.method!=='GET') return;
+      if(!e.request.url.startsWith(self.location.origin)) return;
       e.respondWith(caches.open(CACHE).then(c=>c.match(e.request).then(r=>{
         if(r) return r;
-        return fetch(e.request).then(res=>{c.put(e.request,res.clone());return res;}).catch(()=>r);
+        return fetch(e.request).then(res=>{c.put(e.request,res.clone());return res;}).catch(()=>r||new Response('',{status:408}));
       })));
     });
   `;
