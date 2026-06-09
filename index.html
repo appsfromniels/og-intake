@@ -2715,8 +2715,10 @@ async function doLogin(){
   try {
     await signIn(email, password);
     document.getElementById('login-view').style.display = 'none';
+    document.getElementById('main-content').style.display = '';
     document.getElementById('app-header').style.display = '';
     APP.view = 'home';
+    refresh();
     await doFullSync();
     refresh();
   } catch(e) {
