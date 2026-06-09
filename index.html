@@ -401,6 +401,33 @@ const TABS = [
   { id:'overzicht', label:'Overzicht', icon:'check' }
 ];
 
+
+const EXTRA_TAKEN_LIST = [
+  ['meubels_basis',        'Meubels leeggeruimd',           'De woning leeggeruimd zal worden van alle meubels en kleingoed.'],
+  ['lampen_gord_rails',    'Lampen, gordijnen & rails',      'De lampen, gordijnen en gordijnrails zullen worden verwijderd.'],
+  ['tuin_schuur',          'Tuin & schuur leeg',             'De tuin en schuur worden leeg opgeleverd.'],
+  ['spullen_opgekocht',    'Bruikbare spullen opgekocht',    'Bruikbare waardevolle spullen worden door ons opgekocht.'],
+  ['vloer_blijft',         'Vloerbedekking blijft',          'De vloerbedekking blijft achter in de woning.'],
+  ['bezemschoon',          'Bezemschoon opgeleverd',         'De woning wordt bezemschoon opgeleverd.'],
+  ['twee_fases',           'Twee fases (verhuizing)',         'De woning leeggeruimd zal worden van alle meubelen en kleingoed, in twee fases i.v.m. de verhuizing naar de nieuwe woning.'],
+  ['verhuizing_opslag',    'Spullen naar nieuwe woning',     'De door u aangewezen spullen zullen eerst verhuisd worden naar de nieuwe woning en evt. een opslag.'],
+  ['milieustraat_adam',    'Afval milieustraat Amsterdam',   'Alle afval zal categorisch worden gestort op de milieustraat te Amsterdam.'],
+  ['milieustraat_zoet',    'Afval milieustraat Zoetermeer',  'Alle afval zal categorisch worden gestort op de milieustraat te Zoetermeer, of per afspraak worden opgehaald.'],
+  ['vloer_lampen',         'Vloerbedekking & lampen weg',    'Vloerbedekking en lampen worden verwijderd.'],
+  ['vloer_ondervloer',     'Vloer & ondervloer verwijderd',  'Vloerbedekking en ondervloer worden uit de woning gehaald.'],
+  ['vaste_kasten',         'Vaste kasten blijven',           'Vaste kasten, e.a. interieur vastgemaakt aan de muur/ingebouwd e.d. worden niet verwijderd.'],
+  ['herbestemming',        'Bruikbare spullen herbestemming','Bruikbare spullen zullen een herbestemming krijgen.'],
+  ['bezemschoon_verhuurder','Bezemschoon naar wens verhuurder','De woning wordt bezemschoon opgeleverd en naar de wensen van de verhuurder.'],
+  ['bezemschoon_wensen',   'Bezemschoon naar uw wensen',    'De woning wordt bezemschoon opgeleverd en naar uw wensen.'],
+  ['prijs_aanpassen',      'Prijs evt. naar beneden',        'Indien we minder werk hebben kunnen we de offerteprijs nog naar beneden aanpassen.'],
+  ['berging_schuur',       'Berging/schuur leeg',            'Berging/schuur wordt leeg opgeleverd.'],
+  ['lampen_raambekleding', 'Lampen & raambekleding weg',     'Lampen en raambekleding worden verwijderd.'],
+  ['lam_raam_blijft',      'Lampen & raambekleding blijven', 'Lampen en raambekleding worden niet verwijderd.'],
+  ['transport_optioneel',  'Transport optioneel',            'Optioneel is het transporteren van de spullen die u zou willen behouden naar de andere woning/een opslag. De kosten liggen buiten deze offerteberekening, tenzij ze binnen de ingeschatte werktijd vallen.'],
+  ['tuin_garage',          'Tuin & garage leeggeruimd',      'Tuin en garage worden leeggeruimd.'],
+  ['transport_adam',       'Transport naar Amsterdam',        'Enkele spullen zullen naar Amsterdam getransporteerd worden tegen apart uurtarief.'],
+];
+
 const MEENEMEN = ['Breekijzer','Behangstomer','Touw & Blok','Bikhamer','Sleutels','Verf','Saus','Tapijtklauw'];
 
 const TAKEN_LIST = [
@@ -443,7 +470,7 @@ function emptyState(){
     verhuislift: { gebruik:false, dag:'', uur:'', ontheffing:false },
     grofvuil: { straat:false, dag:'', klantrijdt:false },
     logistiek: { personen:'', dagen:'', uren:'', uitvoerdatum:'', uitvoerdatumEind:'', reden:'', kratten:'', m3handel:'', m3grofvuil:'', waarde:'', kosten:'' },
-    kosten: { busUren:'', liftUren:'', ontheffing:'', afvalKg:'', mindering:'', minder_auto:true },
+    kosten: { voorrijkosten:'', materiaalkosten:'', ontheffing:'', afvalKg:'', mindering:'', minder_auto:true },
     betaling: { type:'incl', methode:'', voldaan:false },
     emailBevestiging: false,
     meenemen: [],
@@ -451,6 +478,8 @@ function emptyState(){
     notities: '',
     fotos: [],
     offerteNotities: '',
+    extraTaken: {},
+    extraTakenTeksten: {},
     status: 'nieuw',
     factuurMeta: null,
     factuur: {
@@ -663,11 +692,11 @@ function fmt(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
 function calcTotalen(){
   const k=S.kosten, l=S.logistiek;
   const pers=fmt(l.personen)*fmt(l.uren)*fmt(l.dagen)*39.5;
-  const bus=fmt(k.busUren)*25, lift=fmt(k.liftUren)*100;
+  const voorr=fmt(k.voorrijkosten), matkost=fmt(k.materiaalkosten);
   const onth=fmt(k.ontheffing);
   const afvl=fmt(k.afvalKg)*0.25, min=fmt(k.mindering);
-  const sub=pers+bus+lift+onth+afvl-min;
-  return {pers,bus,lift,onth,afvl,min,sub,btw:sub*0.21,tot:sub*1.21};
+  const sub=pers+voorr+matkost+onth+afvl-min;
+  return {pers,voorr,matkost,onth,afvl,min,sub,btw:sub*0.21,tot:sub*1.21};
 }
 function eu(n){ return '\u20ac\u00A0'+n.toFixed(2).replace('.',','); }
 
@@ -775,6 +804,19 @@ function renderKlus(){
           <textarea style="width:100%;padding:8px 10px;font-size:13px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;resize:vertical;min-height:48px;line-height:1.4;color:var(--text)"
             oninput="S.takenTeksten['${k}']=this.value;scheduleAutoSave()"
             onblur="scheduleAutoSave()">${esc(S.takenTeksten[k]||def)}</textarea>
+        </div>`).join('')}
+
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin:14px 0 8px">Extra zinnen voor offerte</div>
+      <div class="chip-group" style="margin-bottom:12px">
+        ${EXTRA_TAKEN_LIST.map(([k,lbl])=>`
+          <div class="chip${(S.extraTaken||{})[k]?' active':''}" onclick="toggleExtraTaak('${k}')">${lbl}</div>`).join('')}
+      </div>
+      ${EXTRA_TAKEN_LIST.filter(([k])=>(S.extraTaken||{})[k]).map(([k,lbl,def])=>`
+        <div style="margin-bottom:8px">
+          <label style="font-size:11px;color:var(--g600);font-weight:500;display:block;margin-bottom:4px">${lbl}</label>
+          <textarea style="width:100%;padding:8px 10px;font-size:13px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;resize:vertical;min-height:48px;line-height:1.4;color:var(--text)"
+            oninput="if(!S.extraTakenTeksten)S.extraTakenTeksten={};S.extraTakenTeksten['${k}']=this.value;scheduleAutoSave()"
+            onblur="scheduleAutoSave()">${esc((S.extraTakenTeksten||{})[k]||def)}</textarea>
         </div>`).join('')}
     </div>
   </div>
@@ -893,16 +935,16 @@ function renderKosten(){
       </div>
       <div class="divider"></div>
       <div class="cost-section">
-        <div class="cost-label-row">Voertuig & materieel</div>
+        <div class="cost-label-row">Overige kosten</div>
         <div class="cost-row">
-          <div class="cost-name">Bus (€25/uur)</div>
-          <div class="cost-num"><input type="number" value="${esc(k.busUren)}" placeholder="uren" id="k-bus" oninput="S.kosten.busUren=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
-          <div class="cost-result"><span id="tot-bus">${eu(T.bus)}</span></div>
+          <div class="cost-name">Voorrijkosten (€)</div>
+          <div class="cost-num"><input type="number" value="${esc(k.voorrijkosten)}" placeholder="€" id="k-voorr" oninput="S.kosten.voorrijkosten=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
+          <div class="cost-result"><span id="tot-voorr">${eu(T.voorr)}</span></div>
         </div>
         <div class="cost-row">
-          <div class="cost-name">Verhuislift (€100/uur)</div>
-          <div class="cost-num"><input type="number" value="${esc(k.liftUren)}" placeholder="uren" id="k-lift" oninput="S.kosten.liftUren=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
-          <div class="cost-result"><span id="tot-lift">${eu(T.lift)}</span></div>
+          <div class="cost-name">Materiaalkosten (€)</div>
+          <div class="cost-num"><input type="number" value="${esc(k.materiaalkosten)}" placeholder="€" id="k-matkost" oninput="S.kosten.materiaalkosten=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
+          <div class="cost-result"><span id="tot-matkost">${eu(T.matkost)}</span></div>
         </div>
         <div class="cost-row">
           <div class="cost-name">Ontheffing / parkeren</div>
@@ -1127,6 +1169,17 @@ function renderNav(){
 
 function goTab(i){ S.tab=i; refresh(); document.querySelector('.content').scrollTop=0; }
 
+function toggleExtraTaak(k){
+  if(!S.extraTaken) S.extraTaken = {};
+  if(!S.extraTakenTeksten) S.extraTakenTeksten = {};
+  S.extraTaken[k] = !S.extraTaken[k];
+  if(S.extraTaken[k]){
+    const item = EXTRA_TAKEN_LIST.find(([id])=>id===k);
+    if(item && !S.extraTakenTeksten[k]) S.extraTakenTeksten[k] = item[2];
+  }
+  refresh(); scheduleAutoSave();
+}
+
 function toggleTaak(k){
   S.taken[k] = !S.taken[k];
   // Reset to default text when re-enabling
@@ -1305,8 +1358,8 @@ async function generatePDFBlob(){
   // ── FINANCIEEL ──
   section('Financieel');
   row('Personeelskosten', ef(T.pers));
-  if(T.bus>0)  row('Bus', ef(T.bus));
-  if(T.lift>0) row('Verhuislift', ef(T.lift));
+  if(T.voorr>0) row('Voorrijkosten', ef(T.voorr));
+  if(T.matkost>0) row('Materiaalkosten', ef(T.matkost));
   if(T.onth>0) row('Ontheffing', ef(T.onth));
   if(T.afvl>0) row('Afval', ef(T.afvl));
   if(T.min>0)  row('33% mindering inboedel', '-'+ef(T.min));
@@ -1454,14 +1507,14 @@ function copyBetaalgegevens(){
 function buildVasteRegels(){
   const k=S.kosten, l=S.logistiek;
   const pers = fmt(l.personen)*fmt(l.uren)*fmt(l.dagen)*39.5;
-  const bus  = fmt(k.busUren)*25;
-  const lift = fmt(k.liftUren)*100;
+  const voorr = fmt(k.voorrijkosten);
+  const matkost = fmt(k.materiaalkosten);
   const onth = fmt(k.ontheffing);
   return [
-    pers>0  && {omschrijving:'Personeelskosten ('+l.personen+' pers × '+l.uren+' uur × '+l.dagen+' dagen)', bedrag:String(pers)},
-    bus>0   && {omschrijving:'Bus', bedrag:String(bus)},
-    lift>0  && {omschrijving:'Verhuislift', bedrag:String(lift)},
-    onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:String(onth)},
+    pers>0    && {omschrijving:'Personeelskosten ('+l.personen+' pers × '+l.uren+' uur × '+l.dagen+' dagen)', bedrag:String(pers)},
+    voorr>0   && {omschrijving:'Voorrijkosten', bedrag:String(voorr)},
+    matkost>0 && {omschrijving:'Materiaalkosten', bedrag:String(matkost)},
+    onth>0    && {omschrijving:'Ontheffing/parkeerplekken', bedrag:String(onth)},
   ].filter(Boolean);
 }
 
@@ -1469,6 +1522,7 @@ function initFactuurIfEmpty(){
   const f = S.factuur;
   if(!f.nummer) f.nummer = getNextFactuurNummer();
   if(!f.datum)  f.datum  = new Date().toISOString().slice(0,10);
+  if(!f.betalingstermijn || f.betalingstermijn === '15') f.betalingstermijn = '14';
   if(!f.projectnaam && S.klant.adres) f.projectnaam = S.klant.adres;
   if(!f.aanhef && S.klant.naam) f.aanhef = 't.a.v. '+S.klant.naam;
   // Pre-populate regels from intake if not yet done
@@ -1487,8 +1541,8 @@ function renderFactuur(){
 
   const vaste = [
     T.pers>0  && {omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)', bedrag:T.pers},
-    T.bus>0   && {omschrijving:'Bus', bedrag:T.bus},
-    T.lift>0  && {omschrijving:'Verhuislift', bedrag:T.lift},
+    T.voorr>0   && {omschrijving:'Voorrijkosten', bedrag:T.voorr},
+    T.matkost>0 && {omschrijving:'Materiaalkosten', bedrag:T.matkost},
     T.onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:T.onth},
   ].filter(Boolean);
 
@@ -1598,16 +1652,16 @@ async function generateOffertePDF(blobOnly=false){
   ];
   let iy=14;
   info.forEach(([lbl,val])=>{
-    if(lbl){ doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted); doc.text(lbl, 128, iy, {align:'right'}); }
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...dark); doc.text(val, 131, iy); iy+=5;
+    if(lbl){ doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted); doc.text(lbl, 140, iy, {align:'right'}); }
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...dark); doc.text(val, 142, iy); iy+=5;
   });
 
   // ── DATUM ──
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...dark);
-  doc.text('Amsterdam, '+today+'.', pad, 50);
+  doc.text('Amsterdam, '+today+'.', pad, 56);
 
   // ── OFFERTE HEADER BLOCK ──
-  let y=62;
+  let y=68;
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...dark);
   doc.text('OFFERTE', pad, y);
   doc.setFont('helvetica','normal');
@@ -1638,8 +1692,8 @@ async function generateOffertePDF(blobOnly=false){
   // ── REGELS ──
   const regels = [
     (T.pers>0) && {omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)', bedrag:T.pers},
-    (T.bus>0)  && {omschrijving:'Bus', bedrag:T.bus},
-    (T.lift>0) && {omschrijving:'Verhuislift', bedrag:T.lift},
+    (T.voorr>0)   && {omschrijving:'Voorrijkosten', bedrag:T.voorr},
+    (T.matkost>0) && {omschrijving:'Materiaalkosten', bedrag:T.matkost},
     (T.onth>0) && {omschrijving:'Ontheffing/parkeerplekken', bedrag:T.onth},
     (T.afvl>0) && {omschrijving:'Afvalkosten', bedrag:T.afvl},
   ].filter(Boolean);
@@ -1662,10 +1716,15 @@ async function generateOffertePDF(blobOnly=false){
   // ── TOTALEN ──
   // ── WAT WIJ GAAN DOEN ──
   const actieveTaken = TAKEN_LIST.filter(([k])=>S.taken[k]);
-  if(actieveTaken.length > 0 && y+30 < 265){
+  const actieveExtra = EXTRA_TAKEN_LIST.filter(([k])=>(S.extraTaken||{})[k]);
+  if(actieveTaken.length > 0 || actieveExtra.length > 0){
+    if(y + 20 > 265){ doc.addPage(); y = 22; }
     y += 4;
     doc.setFillColor(236,250,249);
-    const watLines = actieveTaken.map(([k,lbl])=>S.takenTeksten[k]||'').filter(Boolean);
+    const watLines = [
+      ...actieveTaken.map(([k])=>S.takenTeksten[k]||''),
+      ...actieveExtra.map(([k,,def])=>(S.extraTakenTeksten||{})[k]||def||'')
+    ].filter(Boolean);
     const watH = watLines.length * 5 + 10;
     if(y + watH < 268){
       doc.rect(pad, y, colR-pad, watH, 'F');
@@ -1699,12 +1758,14 @@ async function generateOffertePDF(blobOnly=false){
   y+=12;
 
   // ── AANVULLENDE INFORMATIE ──
-  if(S.offerteNotities && S.offerteNotities.trim() && y+20<270){
+  if(S.offerteNotities && S.offerteNotities.trim()){
+    if(y + 20 > 265){ doc.addPage(); y = 22; }
     y+=4;
     doc.setFillColor(236,250,249);
     const notLines = doc.splitTextToSize(S.offerteNotities.trim(), colR-pad-6);
     const notH = notLines.length*5+8;
-    if(y+notH<272){
+    {
+      if(y + notH > 272){ doc.addPage(); y = 22; }
       doc.rect(pad, y, colR-pad, notH, 'F');
       doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...teal);
       doc.text('Aanvullende informatie', pad+3, y+5);
@@ -1714,25 +1775,26 @@ async function generateOffertePDF(blobOnly=false){
     }
   }
 
-  // ── DISCLAIMER ──
-  if(y + 20 < 270){
+  // ── DISCLAIMER (always included, new page if needed) ──
+  {
     y += 4;
+    const disclText = 'Indien de vloerbedekking te zeer is vastgelijmd om de ontruiming binnen de tijd te laten plaatsvinden, dan zullen wij direct contact met u opnemen voor overleg. Dat geldt ook als we vermoeden dat er asbest in de vloerbedekking aanwezig is; we mogen de betreffende vloer dan niet verwijderen.';
+    const disclLines = doc.splitTextToSize(disclText, colR-pad-6);
+    const disclH = disclLines.length*4.5+8;
+    if(y + disclH > 272){ doc.addPage(); y = 22; }
     doc.setDrawColor(210,210,210);
     doc.setFillColor(250,250,250);
-    const disclLines = doc.splitTextToSize('Indien de vloerbedekking te zeer is vastgelijmd om de ontruiming binnen de tijd te laten plaatsvinden, dan zullen wij direct contact met u opnemen voor overleg. Dat geldt ook als we vermoeden dat er asbest in de vloerbedekking aanwezig is; we mogen de betreffende vloer dan niet verwijderen.', colR-pad-6);
-    const disclH = disclLines.length*4.5+8;
-    if(y+disclH < 272){
-      doc.rect(pad, y, colR-pad, disclH, 'FD');
-      doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(100,100,100);
-      disclLines.forEach((line,i)=>{ doc.text(line, pad+3, y+6+(i*4.5)); });
-      y += disclH+6;
-    }
+    doc.rect(pad, y, colR-pad, disclH, 'FD');
+    doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(100,100,100);
+    disclLines.forEach((line,i)=>{ doc.text(line, pad+3, y+6+(i*4.5)); });
+    y += disclH+6;
   }
 
   // ── AFSLUITING ──
   const afsluiting = 'Wij hopen u hiermee een duidelijk beeld te hebben gegeven. Graag ontvangen wij uw akkoord.\n\nMet hartelijke groet,\nFrank van Haaren, Robin van de Water';
+  if(y + 30 > 272){ doc.addPage(); y = 22; }
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...dark);
-  afsluiting.split('\n').forEach(line=>{ if(y<278){doc.text(line,pad,y);y+=5;} });
+  afsluiting.split('\n').forEach(line=>{ if(y>278){doc.addPage();y=22;} doc.text(line,pad,y);y+=5; });
 
   // ── FOOTER ──
   const pages=doc.getNumberOfPages();
@@ -1807,19 +1869,19 @@ async function generateFactuurPDF(blobOnly=false){
   info.forEach(([lbl,val])=>{
     if(lbl){
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted);
-      doc.text(lbl, 128, iy, {align:'right'});
+      doc.text(lbl, 140, iy, {align:'right'});
     }
     doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...dark);
-    doc.text(val, 131, iy);
+    doc.text(val, 142, iy);
     iy += 5;
   });
 
   // ── DATUM + STAD ──
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...dark);
-  doc.text('Amsterdam, '+fmtD(f.datum||new Date().toISOString().slice(0,10))+'.', pad, 50);
+  doc.text('Amsterdam, '+fmtD(f.datum||new Date().toISOString().slice(0,10))+'.', pad, 56);
 
   // ── FACTUUR HEADER BLOCK ──
-  let y = 62;
+  let y = 68;
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...dark);
   doc.text('FACTUUR', pad, y);
   doc.setFont('helvetica','normal');
@@ -1853,8 +1915,8 @@ async function generateFactuurPDF(blobOnly=false){
   const l = S.logistiek;
   const vaste = [
     T.pers>0  && {omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)', bedrag:T.pers},
-    T.bus>0   && {omschrijving:'Bus', bedrag:T.bus},
-    T.lift>0  && {omschrijving:'Verhuislift', bedrag:T.lift},
+    T.voorr>0   && {omschrijving:'Voorrijkosten', bedrag:T.voorr},
+    T.matkost>0 && {omschrijving:'Materiaalkosten', bedrag:T.matkost},
     T.onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:T.onth},
   ].filter(Boolean);
   const alleRegels = [...vaste, ...(f.regels||[]).filter(r=>r.omschrijving)];
@@ -2438,8 +2500,8 @@ function updateTotals(){
     const l = S.logistiek;
     const update = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
     update('tot-pers', eu(T.pers));
-    update('tot-bus',  eu(T.bus));
-    update('tot-lift', eu(T.lift));
+    update('tot-voorr', eu(T.voorr));
+    update('tot-matkost', eu(T.matkost));
     update('tot-onth', eu(T.onth));
       update('tot-afvl', eu(T.afvl));
     update('tot-min',  '−'+eu(T.min));
