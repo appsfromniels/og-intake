@@ -297,7 +297,7 @@ td input:focus{border-color:var(--g500)}
 /* LOGIN */
 .login-view{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 24px;background:var(--bg)}
 .login-logo{height:64px;width:auto;margin-bottom:24px}
-.login-card{background:#fff;border-radius:var(--r);box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:28px 24px;width:100%;max-width:360px}
+.login-card{background:#fff;border-radius:var(--r);box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:28px 24px;width:100%;max-width:360px;position:relative;z-index:1}
 .login-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px}
 .login-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
 .login-btn{width:100%;padding:14px;background:var(--g400);color:#fff;border:none;border-radius:var(--rs);font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
@@ -398,7 +398,7 @@ td input:focus{border-color:var(--g500)}
   </div>
 </div>
 
-<div id="login-view" style="display:none">
+<div id="login-view" style="display:none;position:fixed;inset:0;z-index:1000;overflow-y:auto;background:var(--bg)">
   <div class="login-view">
     <img id="login-logo-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOUAAABTCAYAAABgWsB+AAAACXBIWXMAABcRAAAXEQHKJvM/AAALaElEQVR4nO2d3XHiSBDH/3117/ZFYDKAi2C1RfFslgRWjmC9EayIYO0IVk6Aw88UtSKCwxEcZGAimHuYHjMW+hh9C9y/KgpbGo1GQn" class="login-logo" alt="Ontruimend Goed">
     <div class="login-card">
@@ -2826,12 +2826,13 @@ function updateTotals(){
 /* ---- SERVICE WORKER (offline cache) ---- */
 if('serviceWorker' in navigator){
   const swCode = `
-    const CACHE='og-v5';
+    const CACHE='og-v7';
     self.addEventListener('install',e=>{self.skipWaiting()});
     self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim())});
     self.addEventListener('fetch',e=>{
       if(e.request.method!=='GET') return;
       if(!e.request.url.startsWith(self.location.origin)) return;
+      if(e.request.url.startsWith('blob:') || e.request.url.startsWith('data:')) return;
       e.respondWith(caches.open(CACHE).then(c=>c.match(e.request).then(r=>{
         if(r) return r;
         return fetch(e.request).then(res=>{c.put(e.request,res.clone());return res;}).catch(()=>r||new Response('',{status:408}));
