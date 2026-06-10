@@ -2754,13 +2754,18 @@ async function doLogin(){
   btn.textContent = 'Bezig...';
   try {
     await signIn(email, password);
+    // Show app immediately
     document.getElementById('login-view').style.display = 'none';
     document.getElementById('main-content').style.display = '';
     document.getElementById('app-header').style.display = '';
+    btn.disabled = false;
+    btn.textContent = 'Inloggen';
     APP.view = 'home';
     refresh();
-    await doFullSync();
-    refresh();
+    // Sync in background without blocking
+    if(navigator.onLine){
+      doFullSync().then(()=>refresh()).catch(()=>{});
+    }
   } catch(e) {
     console.error('Login error:', e);
     err.textContent = 'Fout: ' + JSON.stringify(e.message || e);
@@ -2787,8 +2792,10 @@ updateOfflineBanner();
   if(session) {
     currentUser = session.user;
     document.getElementById('login-view').style.display = 'none';
-    await doFullSync();
+    document.getElementById('main-content').style.display = '';
+    APP.view = 'home';
     refresh();
+    if(navigator.onLine){ doFullSync().then(()=>refresh()).catch(()=>{}); }
   } else {
     // Show login, hide app
     document.getElementById('app-header').style.display = 'none';
