@@ -312,6 +312,10 @@ td input:focus{border-color:var(--g500)}
 .inst-sub{font-size:12px;color:var(--muted);margin-top:2px}
 .inst-input{width:90px;padding:8px 10px;font-size:15px;font-weight:600;text-align:center;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--rs);color:var(--text)}
 .inst-input:focus{border-color:var(--g500);outline:none}
+
+/* OFFLINE BANNER */
+.offline-banner{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#E65100;color:#fff;text-align:center;font-size:12px;font-weight:500;padding:6px 16px;z-index:600;display:none}
+.offline-banner.visible{display:block}
 @media print{
   .bottom-nav,.tabs,.save-btn,.action-btn{display:none!important}
   .content{padding:0}
@@ -417,6 +421,7 @@ td input:focus{border-color:var(--g500)}
     </div>
   </div>
 </div>
+<div class="offline-banner" id="offline-banner">⚡ Geen internet — wijzigingen worden opgeslagen zodra je weer online bent</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -563,6 +568,7 @@ async function signOut(){
 /* ── SYNC ── */
 async function syncSaveIntake(id, s){
   if(!accessToken) return;
+  if(!navigator.onLine){ pendingSync.add(id); return; }
   try {
     const row = {
       id, naam: s.klant?.naam||'', adres: s.klant?.adres||'',
@@ -574,7 +580,10 @@ async function syncSaveIntake(id, s){
       method:'POST', body: JSON.stringify(row),
       headers:{'Prefer':'resolution=merge-duplicates,return=minimal'}
     });
-  } catch(e){ console.error('Sync save failed', e); }
+  } catch(e){
+    console.error('Sync save failed', e);
+    pendingSync.add(id);
+  }
 }
 
 async function syncDeleteIntake(id){
@@ -2697,6 +2706,37 @@ function showEmailToast(email){
 // Extract PDF generation logic so it can be reused
 
 
+
+/* ---- OFFLINE SYNC ---- */
+let pendingSync = new Set(); // intake IDs that need to be synced
+
+function updateOfflineBanner(){
+  const banner = document.getElementById('offline-banner');
+  if(!banner) return;
+  if(!navigator.onLine){
+    banner.classList.add('visible');
+  } else {
+    banner.classList.remove('visible');
+  }
+}
+
+window.addEventListener('online', async () => {
+  updateOfflineBanner();
+  if(pendingSync.size > 0 && accessToken){
+    showToast('Verbinding terug — synchroniseren...');
+    for(const id of pendingSync){
+      const data = loadIntakeFromStorage(id);
+      if(data) await syncSaveIntake(id, data);
+    }
+    pendingSync.clear();
+    showToast('Gesynchroniseerd ✓');
+  }
+});
+
+window.addEventListener('offline', () => {
+  updateOfflineBanner();
+});
+
 /* ---- LOGIN ---- */
 (function(){
   const img = document.getElementById('og-login-logo');
@@ -2741,6 +2781,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* ---- INIT ---- */
 initSupabase();
+updateOfflineBanner();
 (async () => {
   const session = await getSession();
   if(session) {
@@ -2826,7 +2867,7 @@ function updateTotals(){
 /* ---- SERVICE WORKER (offline cache) ---- */
 if('serviceWorker' in navigator){
   const swCode = `
-    const CACHE='og-v8';
+    const CACHE='og-v9';
     self.addEventListener('install',e=>{self.skipWaiting()});
     self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim())});
     self.addEventListener('fetch',e=>{
