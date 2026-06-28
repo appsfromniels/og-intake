@@ -777,14 +777,13 @@ function renderHome(){
       }).join('');
 
   document.getElementById('main-content').innerHTML = `
-    <div class="home-view">
+    <div class="home-view" style="display:flex;flex-direction:column;min-height:100vh">
       <div class="home-header">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div id="home-user" style="font-size:11px;color:var(--muted)"></div>
-        <div style="display:flex;gap:8px">
-          <button onclick="doFullSync().then(refresh)" style="font-size:11px;color:var(--g700);background:none;border:none;cursor:pointer;padding:4px 0">↺ Sync</button>
-          <button onclick="signOut()" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:4px 0">Uitloggen</button>
-        </div>
+        <button onclick="goInstellingen()" style="background:none;border:none;cursor:pointer;padding:4px" title="Instellingen">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--g700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </button>
       </div>
       <div class="home-logo-row">
           <img src="${LOGO_SRC}" alt="Ontruimend Goed" style="height:52px;width:auto;display:block">
@@ -796,18 +795,25 @@ function renderHome(){
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Nieuwe intake
         </button>
-        <button onclick="goPlanning()" style="padding:15px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Planning">
+        <button onclick="goPlanning()" style="padding:15px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Agenda">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--g700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </button>
+        <button onclick="goOffertes()" style="padding:15px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Offertes">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--g700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         </button>
         <button onclick="goFacturen()" style="padding:15px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Facturen">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--g700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2-3-2z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
         </button>
-        <button onclick="goInstellingen()" style="padding:15px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Instellingen">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--g700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-        </button>
       </div>
       ${idx.length>0?'<div class="list-label">Opgeslagen intakes</div>':''}
-      ${list}
+      <div style="flex:1">${list}</div>
+      <div style="display:flex;justify-content:center;gap:16px;padding:16px;border-top:1px solid var(--border);background:var(--card)">
+        <button onclick="doFullSync().then(refresh)" style="font-size:12px;color:var(--g700);background:none;border:none;cursor:pointer;padding:8px 12px;display:flex;align-items:center;gap:4px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          Sync
+        </button>
+        <button onclick="signOut()" style="font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;padding:8px 12px">Uitloggen</button>
+      </div>
     </div>`;
 }
 
@@ -1332,6 +1338,8 @@ function refresh(){
     renderHome();
   } else if(APP.view === 'planning'){
     renderPlanning();
+  } else if(APP.view === 'offertes'){
+    renderOffertes();
   } else if(APP.view === 'facturen'){
     renderFacturen();
   } else if(APP.view === 'instellingen'){
@@ -2512,6 +2520,123 @@ function renderFacturen(){
     <div style="padding-bottom:40px;margin-top:12px">
       ${itemsHtml}
     </div>`;
+}
+
+/* ---- OFFERTES OVERZICHT ---- */
+function goOffertes(){
+  APP.view='offertes';
+  refresh();
+}
+
+async function downloadOfferte(id, event){
+  event.stopPropagation();
+  const data = loadIntakeFromStorage(id);
+  if(!data) return;
+  const prevS = JSON.parse(JSON.stringify(S));
+  const prevId = APP.id;
+  Object.assign(S, data);
+  APP.id = id;
+  showToast('Offerte aanmaken...');
+  if(!window.jspdf||!window.QRCode){
+    await Promise.all([
+      !window.jspdf  ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js') : Promise.resolve(),
+      !window.QRCode ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js') : Promise.resolve(),
+    ]);
+  }
+  const blob = await generateOffertePDF(true);
+  Object.assign(S, prevS);
+  APP.id = prevId;
+  if(blob){
+    const naam=(data.klant?.naam||'offerte').replace(/[^a-z0-9]/gi,'_');
+    const datum=(data.klant?.datumOfferte||new Date().toISOString().slice(0,10)).replace(/-/g,'');
+    const filename='Offerte_'+naam+'_'+datum+'.pdf';
+    downloadBlob(blob,filename);
+    showToast('Offerte gedownload');
+  }
+}
+
+function renderOffertes(){
+  document.getElementById('app-header').style.display='none';
+  document.getElementById('bottom-nav').style.display='none';
+
+  const idx = getIndex();
+  // Show all intakes that have pricing info (totaal calculated)
+  const metOfferte = idx.filter(i=>{
+    const data = loadIntakeFromStorage(i.id);
+    return data && data.klant && data.klant.datumOfferte;
+  }).sort((a,b)=>{
+    const dataA = loadIntakeFromStorage(a.id);
+    const dataB = loadIntakeFromStorage(b.id);
+    const datumA = dataA?.klant?.datumOfferte || '';
+    const datumB = dataB?.klant?.datumOfferte || '';
+    return datumB.localeCompare(datumA);
+  });
+
+  const ef = n => '\u20ac\u00a0'+n.toFixed(2).replace('.',',');
+  const fmtD = d=>{ if(!d) return ''; const [y,m,day]=d.split('-'); return day+'-'+m+'-'+y; };
+
+  let itemsHtml = '';
+  if(metOfferte.length===0){
+    itemsHtml='<div class="facturen-empty">Nog geen offertes aangemaakt.<br>Maak een offerte via een intake.</div>';
+  } else {
+    let currentYear = null;
+    metOfferte.forEach(item=>{
+      const data = loadIntakeFromStorage(item.id);
+      const k = data?.klant || {};
+      const datum = k.datumOfferte || '';
+      const year = datum ? datum.slice(0,4) : '—';
+      const totaal = data?.kosten?.totaal || 0;
+      const status = item.status || 'nieuw';
+      const st = STATUSES[status] || STATUSES.nieuw;
+
+      if(year !== currentYear){
+        if(currentYear !== null){
+          itemsHtml += '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg)"><div style="flex:1;height:1px;background:var(--border)"></div><span style="font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap">'+year+'</span><div style="flex:1;height:1px;background:var(--border)"></div></div>';
+        } else {
+          itemsHtml += '<div style="padding:10px 16px 4px"><span style="font-size:11px;font-weight:600;color:var(--muted)">'+year+'</span></div>';
+        }
+        currentYear = year;
+      }
+      itemsHtml += '<div class="factuur-item" onclick="openIntake(\''+item.id+'\')">'+
+          '<div class="factuur-item-info">'+
+            '<div class="factuur-item-naam">'+(item.naam||'Naamloos')+'</div>'+
+            '<div class="factuur-item-meta">'+fmtD(datum)+' &middot; '+ef(totaal)+'</div>'+
+          '</div>'+
+          '<span class="status-badge" style="background:'+st.bg+';color:'+st.color+';flex-shrink:0;font-size:10px;padding:4px 8px">'+st.label+'</span>'+
+          '<button onclick="downloadOfferte(\''+item.id+'\',event)" style="background:none;border:none;padding:8px 6px;cursor:pointer;color:var(--muted);flex-shrink:0" title="Download offerte">'+
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'+
+          '</button>'+
+        '</div>';
+    });
+  }
+
+  // Calculate totals
+  let totaalOffertes = 0;
+  metOfferte.forEach(item=>{
+    const data = loadIntakeFromStorage(item.id);
+    totaalOffertes += data?.kosten?.totaal || 0;
+  });
+
+  document.getElementById('main-content').innerHTML='<div style="background:#fff;border-bottom:1px solid var(--border);padding:calc(env(safe-area-inset-top,0px)+14px) 16px 0">'+
+      '<button class="planning-back" onclick="APP.view=\'home\';refresh()">'+
+        '<svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>'+
+        'Offertes'+
+      '</button>'+
+    '</div>'+
+    (metOfferte.length>0?
+    '<div style="display:flex;gap:8px;margin:12px 16px 0">'+
+      '<div style="flex:1;background:var(--card);border-radius:var(--rs);padding:12px 14px;box-shadow:var(--shadow)">'+
+        '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">Aantal offertes</div>'+
+        '<div style="font-size:18px;font-weight:700;color:var(--g700);margin-top:3px">'+metOfferte.length+'</div>'+
+      '</div>'+
+      '<div style="flex:1;background:var(--card);border-radius:var(--rs);padding:12px 14px;box-shadow:var(--shadow)">'+
+        '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">Totaal waarde</div>'+
+        '<div style="font-size:18px;font-weight:700;color:var(--g700);margin-top:3px">'+ef(totaalOffertes)+'</div>'+
+      '</div>'+
+    '</div>':'')+
+    '<div style="padding-bottom:40px;margin-top:12px">'+
+      itemsHtml+
+    '</div>';
 }
 
 /* ---- STATUS ---- */
