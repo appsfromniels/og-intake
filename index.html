@@ -418,6 +418,7 @@ td input:focus{border-color:var(--g500)}
       </div>
       <button class="login-btn" id="login-btn" onclick="doLogin()">Inloggen</button>
       <div class="login-err" id="login-err"></div>
+      <button onclick="resetPassword()" style="background:none;border:none;color:var(--g600);font-size:13px;cursor:pointer;margin-top:12px;text-decoration:underline">Wachtwoord vergeten?</button>
     </div>
   </div>
 </div>
@@ -591,6 +592,32 @@ async function changePassword(){
     showToast('Wachtwoord gewijzigd!');
   } catch(e){
     showToast('Fout bij wijzigen wachtwoord');
+  }
+}
+
+async function resetPassword(){
+  const email = document.getElementById('login-email').value;
+  if(!email || !email.includes('@')){
+    showToast('Vul eerst je e-mailadres in');
+    return;
+  }
+  try {
+    showToast('Reset-link versturen...');
+    const res = await fetch(SUPABASE_URL + '/auth/v1/recover', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY
+      },
+      body: JSON.stringify({ email })
+    });
+    if(res.ok){
+      showToast('Check je e-mail voor de reset-link!');
+    } else {
+      showToast('Kon geen reset-link versturen');
+    }
+  } catch(e){
+    showToast('Fout bij versturen reset-link');
   }
 }
 
