@@ -565,6 +565,35 @@ async function signOut(){
   document.getElementById('login-err').textContent = '';
 }
 
+async function changePassword(){
+  const newPw = document.getElementById('new-password').value;
+  const confirmPw = document.getElementById('confirm-password').value;
+  if(!newPw || newPw.length < 6){
+    showToast('Wachtwoord moet minimaal 6 tekens zijn');
+    return;
+  }
+  if(newPw !== confirmPw){
+    showToast('Wachtwoorden komen niet overeen');
+    return;
+  }
+  try {
+    showToast('Wachtwoord wijzigen...');
+    const res = await sbFetch('/auth/v1/user', {
+      method: 'PUT',
+      body: JSON.stringify({ password: newPw })
+    });
+    if(res.error){
+      showToast('Fout: ' + (res.error.message || 'Onbekende fout'));
+      return;
+    }
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+    showToast('Wachtwoord gewijzigd!');
+  } catch(e){
+    showToast('Fout bij wijzigen wachtwoord');
+  }
+}
+
 /* ── SYNC ── */
 async function syncSaveIntake(id, s){
   if(!accessToken) return;
@@ -2397,6 +2426,17 @@ function renderInstellingen(){
         <div class="card-body" style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:14px;color:var(--text)">${currentUser?.email||'Onbekend'}</span>
           <button onclick="signOut()" style="font-size:13px;color:#C62828;background:none;border:none;cursor:pointer;font-weight:500">Uitloggen</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="card-header"><div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--g700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div><span class="card-title">Wachtwoord wijzigen</span></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <input type="password" id="new-password" placeholder="Nieuw wachtwoord" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:14px;background:#FAFBFA">
+            <input type="password" id="confirm-password" placeholder="Bevestig wachtwoord" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:14px;background:#FAFBFA">
+            <button onclick="changePassword()" style="padding:10px 16px;background:var(--g400);color:#fff;border:none;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer">Wachtwoord opslaan</button>
+          </div>
         </div>
       </div>
 
