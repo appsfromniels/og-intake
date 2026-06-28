@@ -378,11 +378,11 @@ td input:focus{border-color:var(--g500)}
 
 <div class="confirm-overlay" id="confirm-overlay">
   <div class="confirm-box">
-    <div class="confirm-title">Intake verwijderen</div>
+    <div class="confirm-title" id="confirm-title">Intake archiveren</div>
     <div class="confirm-msg" id="confirm-msg">Weet je het zeker?</div>
     <div class="confirm-btns">
       <button class="confirm-cancel" onclick="closeConfirm()">Annuleren</button>
-      <button class="confirm-ok" onclick="confirmOk()">Verwijderen</button>
+      <button class="confirm-ok" id="confirm-ok-btn" onclick="confirmOk()">Archiveren</button>
     </div>
   </div>
 </div>
@@ -472,6 +472,8 @@ const MEENEMEN = ['Breekijzer','Behangstomer','Touw & Blok','Bikhamer','Sleutels
 const TAKEN_LIST = [
   ['meubels','Meubels & kleingoed','Wij verwijderen de meubels en het kleingoed.'],
   ['vloerdelen','Vloerdelen / laminaat','Vloerdelen of laminaat wordt verwijderd.'],
+  ['vloerbedekking','Vloerbedekking','Wij verwijderen de vloerbedekking.'],
+  ['laminaat','Laminaat','Wij verwijderen het laminaat.'],
   ['gordijnen','Gordijnen','Gordijnen worden verwijderd.'],
   ['rails','Rails','Gordijnrails worden verwijderd.'],
   ['tapijttrap','Tapijt op trap','Tapijt op de trap wordt verwijderd.'],
@@ -678,12 +680,12 @@ function emptyState(){
     tab: 0,
     klant: { naam:'', adres:'', etage:'', telefoon:'', email:'', datumOfferte:'', opleverdatum:'', door:'' },
     type: { woning:'', klant:'', extra:[], schoonmaak:'' },
-    taken: { meubels:false,vloerdelen:false,gordijnen:false,rails:false,tapijttrap:false,lampen:false,schoonmaken:false,gaten:false },
-    takenTeksten: { meubels:'Wij verwijderen de meubels en het kleingoed.',vloerdelen:'Vloerdelen of laminaat wordt verwijderd.',gordijnen:'Gordijnen worden verwijderd.',rails:'Gordijnrails worden verwijderd.',tapijttrap:'Tapijt op de trap wordt verwijderd.',lampen:'Lampen worden verwijderd.',schoonmaken:'De woning wordt schoongemaakt.',gaten:'Alle gaten worden gevuld met muurvuller.' },
+    taken: { meubels:false,vloerdelen:false,vloerbedekking:false,laminaat:false,gordijnen:false,rails:false,tapijttrap:false,lampen:false,schoonmaken:false,gaten:false },
+    takenTeksten: { meubels:'Wij verwijderen de meubels en het kleingoed.',vloerdelen:'Vloerdelen of laminaat wordt verwijderd.',vloerbedekking:'Wij verwijderen de vloerbedekking.',laminaat:'Wij verwijderen het laminaat.',gordijnen:'Gordijnen worden verwijderd.',rails:'Gordijnrails worden verwijderd.',tapijttrap:'Tapijt op de trap wordt verwijderd.',lampen:'Lampen worden verwijderd.',schoonmaken:'De woning wordt schoongemaakt.',gaten:'Alle gaten worden gevuld met muurvuller.' },
     verhuislift: { gebruik:false, dag:'', dagEind:'', uur:'', ontheffing:false },
     grofvuil: { straat:false, dag:'', klantrijdt:false },
     logistiek: { personen:'', dagen:'', uren:'', uitvoerdatum:'', uitvoerdatumEind:'', reden:'', kratten:'', m3handel:'', m3grofvuil:'', waarde:'', kosten:'' },
-    kosten: { voorrijkosten:'', materiaalkosten:'', ontheffing:'', afvalKg:'', mindering:'', minder_auto:true },
+    kosten: { voorrijkosten:'', materiaalkosten:'', ontheffing:'', transportwagen:'', afvalKg:'', mindering:'', minderingNaBtw:false, minder_auto:true },
     betaling: { type:'incl', methode:'', voldaan:false },
     emailBevestiging: false,
     meenemen: [],
@@ -784,15 +786,51 @@ function openIntake(id){
 function confirmDelete(id, e){
   e.stopPropagation();
   APP.pendingDelete = id;
+  APP.pendingAction = 'archive';
   const idx = getIndex();
   const item = idx.find(i=>i.id===id);
-  document.getElementById('confirm-msg').textContent = item ? 'Intake van ' + item.naam + ' definitief verwijderen?' : 'Weet je zeker dat je deze intake wil verwijderen?';
+  document.getElementById('confirm-title').textContent = 'Intake archiveren';
+  document.getElementById('confirm-msg').textContent = item ? 'Intake van ' + item.naam + ' archiveren?' : 'Weet je zeker dat je deze intake wil archiveren?';
+  document.getElementById('confirm-ok-btn').textContent = 'Archiveren';
   document.getElementById('confirm-overlay').classList.add('open');
 }
-function closeConfirm(){ document.getElementById('confirm-overlay').classList.remove('open'); }
+function confirmPermanentDelete(id, e){
+  e.stopPropagation();
+  APP.pendingDelete = id;
+  APP.pendingAction = 'delete';
+  const idx = getIndex();
+  const item = idx.find(i=>i.id===id);
+  document.getElementById('confirm-title').textContent = 'Permanent verwijderen';
+  document.getElementById('confirm-msg').textContent = item ? 'Intake van ' + item.naam + ' permanent verwijderen? Dit kan niet ongedaan worden.' : 'Permanent verwijderen? Dit kan niet ongedaan worden.';
+  document.getElementById('confirm-ok-btn').textContent = 'Verwijderen';
+  document.getElementById('confirm-ok-btn').style.background = '#dc2626';
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+function closeConfirm(){
+  document.getElementById('confirm-overlay').classList.remove('open');
+  document.getElementById('confirm-ok-btn').style.background = '';
+}
 function confirmOk(){
-  if(APP.pendingDelete) deleteIntakeFromStorage(APP.pendingDelete);
+  if(APP.pendingDelete){
+    if(APP.pendingAction === 'delete'){
+      deleteIntakeFromStorage(APP.pendingDelete);
+    } else {
+      archiveIntake(APP.pendingDelete);
+    }
+  }
   closeConfirm();
+  refresh();
+}
+function archiveIntake(id){
+  const idx = getIndex();
+  const i = idx.findIndex(e=>e.id===id);
+  if(i>=0){ idx[i].gearchiveerd = true; localStorage.setItem('og_index', JSON.stringify(idx)); }
+}
+function restoreIntake(id, e){
+  e.stopPropagation();
+  const idx = getIndex();
+  const i = idx.findIndex(e=>e.id===id);
+  if(i>=0){ delete idx[i].gearchiveerd; localStorage.setItem('og_index', JSON.stringify(idx)); }
   refresh();
 }
 
@@ -810,14 +848,16 @@ function initials(naam){
 
 function renderHome(){
   const idx = getIndex();
+  const activeIdx = idx.filter(i=>!i.gearchiveerd);
+  const archiefCount = idx.filter(i=>i.gearchiveerd).length;
   document.getElementById('app-header').style.display = 'none';
   document.getElementById('bottom-nav').style.display = 'none';
-  const list = idx.length === 0
+  const list = activeIdx.length === 0
     ? `<div class="empty-state">
         <div class="empty-icon">📋</div>
         <div class="empty-text">Nog geen intakes opgeslagen.<br>Tik op Nieuwe intake om te beginnen.</div>
        </div>`
-    : idx.map(item => {
+    : activeIdx.map(item => {
         const st = STATUSES[item.status||'nieuw']||STATUSES.nieuw;
         return `
       <div class="intake-item" onclick="openIntake('${item.id}')">
@@ -860,8 +900,12 @@ function renderHome(){
         <button onclick="goFacturen()" style="padding:15px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Facturen">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--g700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2-3-2z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
         </button>
+        ${archiefCount>0?`<button onclick="goArchief()" style="padding:15px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative" title="Archief">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--g700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+          <span style="position:absolute;top:-4px;right:-4px;background:#f59e0b;color:#fff;font-size:10px;font-weight:600;padding:2px 5px;border-radius:8px">${archiefCount}</span>
+        </button>`:''}
       </div>
-      ${idx.length>0?'<div class="list-label">Opgeslagen intakes</div>':''}
+      ${activeIdx.length>0?'<div class="list-label">Opgeslagen intakes</div>':''}
       <div style="flex:1">${list}</div>
       <div style="display:flex;justify-content:center;gap:16px;padding:16px;border-top:1px solid var(--border);background:var(--card)">
         <button onclick="doFullSync().then(refresh)" style="font-size:12px;color:var(--g700);background:none;border:none;cursor:pointer;padding:8px 12px;display:flex;align-items:center;gap:4px">
@@ -926,10 +970,13 @@ function calcTotalen(){
   const k=S.kosten, l=S.logistiek;
   const pers=fmt(l.personen)*fmt(l.uren)*fmt(l.dagen)*39.5;
   const voorr=fmt(k.voorrijkosten), matkost=fmt(k.materiaalkosten);
-  const onth=fmt(k.ontheffing);
+  const onth=fmt(k.ontheffing), transp=fmt(k.transportwagen);
   const afvl=fmt(k.afvalKg)*0.25, min=fmt(k.mindering);
-  const sub=pers+voorr+matkost+onth+afvl-min;
-  return {pers,voorr,matkost,onth,afvl,min,sub,btw:sub*0.21,tot:sub*1.21};
+  const naBtw=k.minderingNaBtw;
+  const sub=pers+voorr+matkost+onth+transp+afvl-(naBtw?0:min);
+  const btw=sub*0.21;
+  const tot=sub*1.21-(naBtw?min:0);
+  return {pers,voorr,matkost,onth,transp,afvl,min,naBtw,sub,btw,tot};
 }
 function eu(n){ return '\u20ac\u00A0'+n.toFixed(2).replace('.',','); }
 
@@ -1192,6 +1239,11 @@ function renderKosten(){
           <div class="cost-num"><input type="number" value="${esc(k.ontheffing)}" placeholder="€" id="k-onth" oninput="S.kosten.ontheffing=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
           <div class="cost-result"><span id="tot-onth">${eu(T.onth)}</span></div>
         </div>
+        <div class="cost-row">
+          <div class="cost-name">Gebruik transportwagen</div>
+          <div class="cost-num"><input type="number" value="${esc(k.transportwagen)}" placeholder="€" id="k-transp" oninput="S.kosten.transportwagen=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
+          <div class="cost-result"><span id="tot-transp">${eu(T.transp)}</span></div>
+        </div>
       </div>
       <div class="divider"></div>
       <div class="divider"></div>
@@ -1201,9 +1253,15 @@ function renderKosten(){
           <div class="cost-num"><input type="number" value="${esc(k.mindering)}" placeholder="€" id="k-min" style="border-color:#a8e2df;color:#1a5552" oninput="S.kosten.mindering=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
           <div class="cost-result" style="color:#1a5552">−<span id="tot-min">${eu(T.min)}</span></div>
         </div>
+        <div class="cost-row" style="margin-top:6px">
+          <label style="display:flex;align-items:center;gap:8px;color:#1a5552;font-size:14px;cursor:pointer">
+            <input type="checkbox" ${k.minderingNaBtw?'checked':''} onchange="S.kosten.minderingNaBtw=this.checked;refresh();scheduleAutoSave()" style="accent-color:#1a5552">
+            Na BTW
+          </label>
+        </div>
       </div>
       <div class="divider"></div>
-      <div class="total-line"><span class="lbl">Subtotaal</span><span class="amt">${eu(T.sub)}</span></div>
+      <div class="total-line"><span class="lbl">Subtotaal</span><span class="amt" id="tot-sub">${eu(T.sub)}</span></div>
       <div class="total-line"><span class="lbl">BTW 21%</span><span class="amt" id="tot-btw">${eu(T.btw)}</span></div>
       <div class="total-final"><span class="lbl">Totaalprijs</span><span class="amt" id="tot-tot">${eu(T.tot)}</span></div>
     </div>
@@ -1398,6 +1456,8 @@ function refresh(){
     renderOffertes();
   } else if(APP.view === 'facturen'){
     renderFacturen();
+  } else if(APP.view === 'archief'){
+    renderArchief();
   } else if(APP.view === 'instellingen'){
     renderInstellingen();
   } else {
@@ -1723,11 +1783,12 @@ function getNextFactuurNummer(){
 
 function calcFactuurTotals(){
   const k = S.kosten;
-  const subtotaalExBtw = (S.factuur.regels||[]).reduce((s,r)=>s+fmt(r.bedrag),0);
-  const btw = subtotaalExBtw*0.21;
+  const naBtw = k.minderingNaBtw;
   const verrekening = fmt(k.mindering);
-  const totaal = subtotaalExBtw+btw-verrekening;
-  return {subtotaalExBtw,btw,verrekening,totaal};
+  const subtotaalExBtw = (S.factuur.regels||[]).reduce((s,r)=>s+fmt(r.bedrag),0) - (naBtw?0:verrekening);
+  const btw = subtotaalExBtw*0.21;
+  const totaal = subtotaalExBtw+btw-(naBtw?verrekening:0);
+  return {subtotaalExBtw,btw,verrekening,naBtw,totaal};
 }
 
 function resetFactuurRegels(){
@@ -1766,11 +1827,13 @@ function buildVasteRegels(){
   const voorr = fmt(k.voorrijkosten);
   const matkost = fmt(k.materiaalkosten);
   const onth = fmt(k.ontheffing);
+  const transp = fmt(k.transportwagen);
   return [
     pers>0    && {omschrijving:'Personeelskosten ('+l.personen+' pers × '+l.uren+' uur × '+l.dagen+' dagen)', bedrag:String(pers)},
     voorr>0   && {omschrijving:'Voorrijkosten', bedrag:String(voorr)},
     matkost>0 && {omschrijving:'Materiaalkosten', bedrag:String(matkost)},
     onth>0    && {omschrijving:'Ontheffing/parkeerplekken', bedrag:String(onth)},
+    transp>0  && {omschrijving:'Gebruik transportwagen', bedrag:String(transp)},
   ].filter(Boolean);
 }
 
@@ -1840,9 +1903,10 @@ function renderFactuur(){
         ${icon('plus')} Regel toevoegen
       </button>
       <div class="factuur-totaal">
-        <div class="ft-row"><span>Subtotaal excl. BTW</span><span>${ef(T.subtotaalExBtw)||'\u20ac\u00a00,00'}</span></div>
+        <div class="ft-row"><span>Subtotaal excl. BTW</span><span>${ef(T.subtotaalExBtw+(T.naBtw?0:T.verrekening))||'\u20ac\u00a00,00'}</span></div>
+        ${T.verrekening>0&&!T.naBtw?`<div class="ft-row" style="color:var(--g700)"><span>Verrekening inboedel</span><span>-${ef(T.verrekening)}</span></div>`:''}
         <div class="ft-row"><span>BTW 21%</span><span>${ef(T.btw)||'\u20ac\u00a00,00'}</span></div>
-        ${T.verrekening>0?`<div class="ft-row" style="color:var(--g700)"><span>Verrekening inboedel</span><span>-${ef(T.verrekening)}</span></div>`:''}
+        ${T.verrekening>0&&T.naBtw?`<div class="ft-row" style="color:var(--g700)"><span>Verrekening inboedel</span><span>-${ef(T.verrekening)}</span></div>`:''}
         <div class="ft-row total"><span>Totaal incl. BTW</span><span style="color:var(--g700)">${ef(T.totaal)||'\u20ac\u00a00,00'}</span></div>
       </div>
     </div>
@@ -2198,8 +2262,10 @@ async function generateFactuurPDF(blobOnly=false){
 
   // ── TOTALEN ──
   const totaalRows = [
+    ['Subtotaal excl. BTW', ef(T.subtotaalExBtw+(T.naBtw?0:T.verrekening))],
+    T.verrekening>0&&!T.naBtw ? ['Verrekening inboedel', '-'+ef(T.verrekening)] : null,
     ['BTW 21%', ef(T.btw)],
-    T.verrekening>0 ? ['Verrekening inboedel', '-'+ef(T.verrekening)] : null,
+    T.verrekening>0&&T.naBtw ? ['Verrekening inboedel', '-'+ef(T.verrekening)] : null,
     ['__bold__Totaal incl. BTW', ef(T.totaal)],
   ].filter(Boolean);
 
@@ -2476,6 +2542,58 @@ function goFacturen(){
   refresh();
 }
 
+function goArchief(){
+  APP.view='archief';
+  refresh();
+}
+
+function renderArchief(){
+  document.getElementById('app-header').style.display='none';
+  document.getElementById('bottom-nav').style.display='none';
+  const idx = getIndex();
+  const gearchiveerd = idx.filter(i=>i.gearchiveerd);
+
+  let itemsHtml = '';
+  if(gearchiveerd.length===0){
+    itemsHtml='<div style="text-align:center;color:var(--muted);padding:40px 20px">Geen gearchiveerde intakes</div>';
+  } else {
+    itemsHtml = gearchiveerd.map(item=>{
+      const st = STATUSES[item.status||'nieuw']||STATUSES.nieuw;
+      return `
+      <div class="intake-item" style="opacity:0.8" onclick="openIntake('${item.id}')">
+        <div class="intake-info">
+          <div class="intake-naam">${item.naam||'Naamloos'}</div>
+          <div class="intake-meta">${[item.adres, item.datum?fmtDate(item.datum):''].filter(Boolean).join(' · ')||'Geen datum'}</div>
+        </div>
+        <button onclick="restoreIntake('${item.id}',event)" style="background:#10b981;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;color:#fff;font-size:11px;font-weight:500;flex-shrink:0;margin-right:4px">
+          Herstel
+        </button>
+        <button onclick="confirmPermanentDelete('${item.id}',event)" style="background:none;border:none;padding:8px 6px;cursor:pointer;color:#dc2626;flex-shrink:0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        </button>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('main-content').innerHTML = `
+    <div style="display:flex;flex-direction:column;min-height:100vh">
+      <div style="padding:16px;border-bottom:1px solid var(--border);background:var(--card)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button onclick="goHome()" style="background:none;border:none;cursor:pointer;padding:8px;margin:-8px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--g700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div>
+            <div style="font-size:18px;font-weight:600;color:var(--text)">Archief</div>
+            <div style="font-size:12px;color:var(--muted)">${gearchiveerd.length} gearchiveerde intake${gearchiveerd.length===1?'':'s'}</div>
+          </div>
+        </div>
+      </div>
+      <div style="flex:1;padding:0 0 16px">
+        ${itemsHtml}
+      </div>
+    </div>`;
+}
+
 async function downloadFactuur(id, event){
   event.stopPropagation();
   // Load the intake
@@ -2627,8 +2745,9 @@ function renderOffertes(){
   document.getElementById('bottom-nav').style.display='none';
 
   const idx = getIndex();
-  // Show all intakes that have pricing info (totaal calculated)
+  // Show all intakes that have pricing info (totaal calculated), exclude archived
   const metOfferte = idx.filter(i=>{
+    if(i.gearchiveerd) return false;
     const data = loadIntakeFromStorage(i.id);
     return data && data.klant && data.klant.datumOfferte;
   }).sort((a,b)=>{
@@ -2724,7 +2843,7 @@ function goPlanning(){
 function renderPlanning(){
   document.getElementById('app-header').style.display='none';
   document.getElementById('bottom-nav').style.display='none';
-  const idx = getIndex();
+  const idx = getIndex().filter(i=>!i.gearchiveerd);
   const withDate = idx.filter(i=>i.datum).sort((a,b)=>a.datum.localeCompare(b.datum));
   const withoutDate = idx.filter(i=>!i.datum);
   const DAYS=['zo','ma','di','wo','do','vr','za'];
@@ -3056,7 +3175,8 @@ function updateTotals(){
     update('tot-voorr', eu(T.voorr));
     update('tot-matkost', eu(T.matkost));
     update('tot-onth', eu(T.onth));
-      update('tot-afvl', eu(T.afvl));
+    update('tot-transp', eu(T.transp));
+    update('tot-afvl', eu(T.afvl));
     update('tot-min',  '−'+eu(T.min));
     update('tot-sub',  eu(T.sub));
     update('tot-btw',  eu(T.btw));
