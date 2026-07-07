@@ -1866,19 +1866,9 @@ function initFactuurIfEmpty(){
 
 function renderFactuur(){
   initFactuurIfEmpty();
-  const f = S.factuur, k = S.kosten, l = S.logistiek;
+  const f = S.factuur;
   const T = calcFactuurTotals();
-  const TK = calcTotalen();
   const ef = n => n>0 ? '\u20ac\u00a0'+n.toFixed(2).replace('.',',') : '';
-
-  const vaste = [
-    TK.pers>0  && {omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)', bedrag:TK.pers},
-    TK.voorr>0   && {omschrijving:'Voorrijkosten', bedrag:TK.voorr},
-    TK.matkost>0 && {omschrijving:'Materiaalkosten', bedrag:TK.matkost},
-    TK.onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:TK.onth},
-    TK.transp>0 && {omschrijving:'Gebruik transportwagen', bedrag:TK.transp},
-    TK.kostenAfval>0 && {omschrijving:'Kosten afval grofvuil', bedrag:TK.kostenAfval},
-  ].filter(Boolean);
 
   return `
   <div class="card">
@@ -2250,17 +2240,8 @@ async function generateFactuurPDF(blobOnly=false){
   y += 8;
 
   // ── KOSTENREGELS ──
-  const l = S.logistiek;
-  const TK = calcTotalen();
-  const vaste = [
-    TK.pers>0  && {omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)', bedrag:TK.pers},
-    TK.voorr>0   && {omschrijving:'Voorrijkosten', bedrag:TK.voorr},
-    TK.matkost>0 && {omschrijving:'Materiaalkosten', bedrag:TK.matkost},
-    TK.onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:TK.onth},
-    TK.transp>0 && {omschrijving:'Gebruik transportwagen', bedrag:TK.transp},
-    TK.kostenAfval>0 && {omschrijving:'Kosten afval grofvuil', bedrag:TK.kostenAfval},
-  ].filter(Boolean);
-  const alleRegels = [...vaste, ...(f.regels||[]).filter(r=>r.omschrijving)];
+  // Gebruik alleen f.regels (bewerkbare factuurregels), niet dubbel met vaste
+  const alleRegels = (f.regels||[]).filter(r=>r.omschrijving);
 
   alleRegels.forEach((r,i)=>{
     const bedrag = r.bedrag||0;
@@ -2972,8 +2953,10 @@ async function sendEmail(type){
     body=['Geachte '+naam+',','','Hierbij bevestigen wij de opdracht voor de ontruiming van'+(adres?' '+adres:'')+(datum?' op '+datum:'')+'.','','Wij komen op de afgesproken datum bij u langs.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
 
   } else if(type==='herinnering'){
+    // Gebruik factuur totaal, niet offerte totaal
+    const fT=calcFactuurTotals();
     subject='Betalingsherinnering factuur ontruiming '+adres;
-    body=['Geachte '+naam+',','','Wij herinneren u vriendelijk aan de openstaande factuur'+(adres?' voor de ontruiming van '+adres:'')+'.','','Openstaand bedrag: '+ef(T.tot),'IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Graag binnen 7 dagen overmaken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel].join('\n');
+    body=['Geachte '+naam+',','','Wij herinneren u vriendelijk aan de openstaande factuur'+(adres?' voor de ontruiming van '+adres:'')+'.','','Openstaand bedrag: '+ef(fT.totaal),'IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Graag binnen 7 dagen overmaken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel].join('\n');
   }
 
   // Copy email address to clipboard so user can paste in To: field
