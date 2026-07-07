@@ -2134,6 +2134,7 @@ async function generateOffertePDF(blobOnly=false){
 }
 
 async function generateFactuurPDF(blobOnly=false){
+  try {
   // Init factuur state if needed
   if(!S.factuur.nummer) S.factuur.nummer = getNextFactuurNummer();
   if(!S.factuur.datum) S.factuur.datum = new Date().toISOString().slice(0,10);
@@ -2387,6 +2388,11 @@ async function generateFactuurPDF(blobOnly=false){
   } else {
     downloadBlob(blob,filename);
     showToast('Factuur opgeslagen');
+  }
+  } catch(err) {
+    console.error('Factuur PDF error:', err);
+    showToast('Fout bij aanmaken factuur: '+err.message);
+    return null;
   }
 }
 
