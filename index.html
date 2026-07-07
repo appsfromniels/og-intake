@@ -1815,12 +1815,12 @@ function deleteFactuurRegel(i){
 }
 
 function copyBetaalgegevens(){
-  const T = calcFactuurTotals();
+  const T = calcTotalen();
   const f = S.factuur;
   const lines = [
     'Betaalgegevens Ontruimend Goed',
     'IBAN: '+BEDRIJF.iban,
-    'Bedrag: \u20ac '+T.totaal.toFixed(2).replace('.',','),
+    'Bedrag: \u20ac '+T.tot.toFixed(2).replace('.',','),
     'Omschrijving: Factuur '+(f.nummer||''),
     'Bank: '+BEDRIJF.bank,
   ];
@@ -1867,7 +1867,7 @@ function initFactuurIfEmpty(){
 function renderFactuur(){
   initFactuurIfEmpty();
   const f = S.factuur;
-  const T = calcFactuurTotals();
+  const T = calcTotalen(); // Gebruik calcTotalen voor consistentie met PDF
   const ef = n => n>0 ? '\u20ac\u00a0'+n.toFixed(2).replace('.',',') : '';
 
   return `
@@ -1908,11 +1908,11 @@ function renderFactuur(){
         ${icon('plus')} Regel toevoegen
       </button>
       <div class="factuur-totaal">
-        <div class="ft-row"><span>Subtotaal excl. BTW</span><span>${ef(T.subtotaalExBtw+(T.naBtw?0:T.verrekening))||'\u20ac\u00a00,00'}</span></div>
-        ${T.verrekening>0&&!T.naBtw?`<div class="ft-row" style="color:var(--g700)"><span>Verrekening inboedel</span><span>-${ef(T.verrekening)}</span></div>`:''}
+        ${T.min>0&&!T.naBtw?`<div class="ft-row" style="color:var(--g700)"><span>Verrekening inboedel</span><span>-${ef(T.min)}</span></div>`:''}
+        <div class="ft-row"><span>Subtotaal excl. BTW</span><span>${ef(T.sub)||'\u20ac\u00a00,00'}</span></div>
         <div class="ft-row"><span>BTW 21%</span><span>${ef(T.btw)||'\u20ac\u00a00,00'}</span></div>
-        ${T.verrekening>0&&T.naBtw?`<div class="ft-row" style="color:var(--g700)"><span>Verrekening inboedel</span><span>-${ef(T.verrekening)}</span></div>`:''}
-        <div class="ft-row total"><span>Totaal incl. BTW</span><span style="color:var(--g700)">${ef(T.totaal)||'\u20ac\u00a00,00'}</span></div>
+        ${T.min>0&&T.naBtw?`<div class="ft-row" style="color:var(--g700)"><span>Verrekening inboedel</span><span>-${ef(T.min)}</span></div>`:''}
+        <div class="ft-row total"><span>Totaal incl. BTW</span><span style="color:var(--g700)">${ef(T.tot)||'\u20ac\u00a00,00'}</span></div>
       </div>
     </div>
   </div>
@@ -2155,9 +2155,9 @@ async function generateFactuurPDF(blobOnly=false){
   if(!S.factuur.aanhef && S.klant.naam) S.factuur.aanhef = 't.a.v. '+S.klant.naam;
   if(!S.factuur.regels||S.factuur.regels.length===0) S.factuur.regels=buildVasteRegels();
   S.factuur.regels=S.factuur.regels.filter(r=>!r.omschrijving.toLowerCase().includes('asbest'));
-  // Store factuur metadata
-  const _fT = calcFactuurTotals();
-  S.factuurMeta = { nummer: S.factuur.nummer, datum: S.factuur.datum||new Date().toISOString().slice(0,10), bedrag: _fT.totaal, betaald: S.betaling.voldaan||false };
+  // Store factuur metadata - gebruik calcTotalen voor consistentie
+  const _TK = calcTotalen();
+  S.factuurMeta = { nummer: S.factuur.nummer, datum: S.factuur.datum||new Date().toISOString().slice(0,10), bedrag: _TK.tot, betaald: S.betaling.voldaan||false };
   scheduleAutoSave();
   if(!blobOnly){ showToast('Factuur aanmaken...'); await new Promise(r=>setTimeout(r,0)); }
 
@@ -2173,7 +2173,6 @@ async function generateFactuurPDF(blobOnly=false){
   const doc = new jsPDF({unit:'mm',format:'a4'});
   const W=210, pad=20, colR=W-pad;
   const f=S.factuur, k=S.klant;
-  const T=calcFactuurTotals();
   const teal=[86,189,184], dark=[26,26,26], muted=[120,120,120];
   const ef = n => '\u20ac '+n.toFixed(2).replace('.',',');
   const fmtD = d => { if(!d) return ''; const [y,m,day]=d.split('-'); return day+'-'+m+'-'+y; };
@@ -2240,8 +2239,18 @@ async function generateFactuurPDF(blobOnly=false){
   y += 8;
 
   // ── KOSTENREGELS ──
-  // Gebruik alleen f.regels (bewerkbare factuurregels), niet dubbel met vaste
-  const alleRegels = (f.regels||[]).filter(r=>r.omschrijving);
+  // Bouw regels vers op basis van calcTotalen (net als offerte) voor consistentie
+  const l = S.logistiek;
+  const TK = calcTotalen();
+  const alleRegels = [
+    TK.pers>0  && {omschrijving:'Personeelskosten ('+l.personen+' pers × '+l.uren+' uur × '+l.dagen+' dagen)', bedrag:TK.pers},
+    TK.voorr>0   && {omschrijving:'Voorrijkosten', bedrag:TK.voorr},
+    TK.matkost>0 && {omschrijving:'Materiaalkosten', bedrag:TK.matkost},
+    TK.onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:TK.onth},
+    TK.transp>0 && {omschrijving:'Gebruik transportwagen', bedrag:TK.transp},
+    TK.kostenAfval>0 && {omschrijving:'Kosten afval grofvuil', bedrag:TK.kostenAfval},
+    TK.afvl>0 && {omschrijving:'Afvalkosten ('+S.kosten.afvalKg+' kg)', bedrag:TK.afvl},
+  ].filter(Boolean);
 
   alleRegels.forEach((r,i)=>{
     const bedrag = r.bedrag||0;
@@ -2262,12 +2271,13 @@ async function generateFactuurPDF(blobOnly=false){
   y += 4;
 
   // ── TOTALEN ──
+  // Gebruik TK (calcTotalen) voor consistentie met regels
   const totaalRows = [
-    ['Subtotaal excl. BTW', ef(T.subtotaalExBtw+(T.naBtw?0:T.verrekening))],
-    T.verrekening>0&&!T.naBtw ? ['Verrekening inboedel', '-'+ef(T.verrekening)] : null,
-    ['BTW 21%', ef(T.btw)],
-    T.verrekening>0&&T.naBtw ? ['Verrekening inboedel', '-'+ef(T.verrekening)] : null,
-    ['__bold__Totaal incl. BTW', ef(T.totaal)],
+    TK.min>0&&!TK.naBtw ? ['Verrekening inboedel', '-'+ef(TK.min)] : null,
+    ['Subtotaal excl. BTW', ef(TK.sub)],
+    ['BTW 21%', ef(TK.btw)],
+    TK.min>0&&TK.naBtw ? ['Verrekening inboedel', '-'+ef(TK.min)] : null,
+    ['__bold__Totaal incl. BTW', ef(TK.tot)],
   ].filter(Boolean);
 
   totaalRows.forEach(([lbl,val])=>{
@@ -2290,7 +2300,7 @@ async function generateFactuurPDF(blobOnly=false){
     BEDRIJF.bic,
     BEDRIJF.naam,
     BEDRIJF.iban,
-    'EUR'+T.totaal.toFixed(2),
+    'EUR'+TK.tot.toFixed(2),
     'CHAR','',
     'Factuur '+f.nummer
   ].join('\n');
@@ -2336,7 +2346,7 @@ async function generateFactuurPDF(blobOnly=false){
     doc.text('Scan QR met uw bankieren-app, of gebruik de gegevens hiernaast:', rx, y+4);
     const betaalInfo = [
       ['IBAN', BEDRIJF.iban],
-      ['Bedrag', '€ '+T.totaal.toFixed(2).replace('.',',')],
+      ['Bedrag', '€ '+TK.tot.toFixed(2).replace('.',',')],
       ['Omschrijving', 'Factuur '+(f.nummer||'')],
       ['Bank', BEDRIJF.bank],
     ];
@@ -2398,10 +2408,10 @@ async function generateFactuurPDF(blobOnly=false){
 function renderQRPreview(){
   const container = document.getElementById('qr-container');
   if(!container) return;
-  const T = calcFactuurTotals();
+  const T = calcTotalen();
   const f = S.factuur;
   const epcData = ['BCD','002','1','SCT',BEDRIJF.bic,BEDRIJF.naam,BEDRIJF.iban,
-    'EUR'+T.totaal.toFixed(2),'CHAR','','Factuur '+(f.nummer||'')].join('\n');
+    'EUR'+T.tot.toFixed(2),'CHAR','','Factuur '+(f.nummer||'')].join('\n');
   container.innerHTML='';
   if(window.QRCode){
     new QRCode(container,{text:epcData,width:140,height:140,correctLevel:QRCode.CorrectLevel.M});
@@ -2940,11 +2950,10 @@ async function sendEmail(type){
     if(!S.factuur.aanhef&&k.naam) S.factuur.aanhef='t.a.v. '+k.naam;
     if(!S.factuur.regels||S.factuur.regels.length===0) S.factuur.regels=buildVasteRegels();
     S.factuur.regels=S.factuur.regels.filter(r=>!r.omschrijving.toLowerCase().includes('asbest'));
-    const fT=calcFactuurTotals();
-    S.factuurMeta={nummer:S.factuur.nummer,datum:S.factuur.datum,bedrag:fT.totaal,betaald:false};
+    S.factuurMeta={nummer:S.factuur.nummer,datum:S.factuur.datum,bedrag:T.tot,betaald:false};
     scheduleAutoSave();
     subject='Factuur ontruiming '+adres;
-    body=['Geachte '+naam+',','','Bijgaand ontvangt u de factuur voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' uitgevoerd op '+datum:'')+'.','','Factuurbedrag: '+ef(fT.totaal)+' incl. BTW.','IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Gelieve binnen 14 dagen te betalen.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
+    body=['Geachte '+naam+',','','Bijgaand ontvangt u de factuur voor de ontruimingswerkzaamheden'+(adres?' aan '+adres:'')+(datum?' uitgevoerd op '+datum:'')+'.','','Factuurbedrag: '+ef(T.tot)+' incl. BTW.','IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Gelieve binnen 14 dagen te betalen.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
     blob=_cachedFactuurPdfBlob;
     filename='Factuur_'+(S.factuur.nummer||'').replace('/','_')+'_'+naamFile+'.pdf';
 
@@ -2953,10 +2962,8 @@ async function sendEmail(type){
     body=['Geachte '+naam+',','','Hierbij bevestigen wij de opdracht voor de ontruiming van'+(adres?' '+adres:'')+(datum?' op '+datum:'')+'.','','Wij komen op de afgesproken datum bij u langs.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel,BEDRIJF.email].join('\n');
 
   } else if(type==='herinnering'){
-    // Gebruik factuur totaal, niet offerte totaal
-    const fT=calcFactuurTotals();
     subject='Betalingsherinnering factuur ontruiming '+adres;
-    body=['Geachte '+naam+',','','Wij herinneren u vriendelijk aan de openstaande factuur'+(adres?' voor de ontruiming van '+adres:'')+'.','','Openstaand bedrag: '+ef(fT.totaal),'IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Graag binnen 7 dagen overmaken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel].join('\n');
+    body=['Geachte '+naam+',','','Wij herinneren u vriendelijk aan de openstaande factuur'+(adres?' voor de ontruiming van '+adres:'')+'.','','Openstaand bedrag: '+ef(T.tot),'IBAN: '+BEDRIJF.iban,'T.n.v.: '+BEDRIJF.naam,'','Graag binnen 7 dagen overmaken.','','Met hartelijke groet,','Frank van Haaren, Robin van de Water','Ontruimend Goed',BEDRIJF.tel].join('\n');
   }
 
   // Copy email address to clipboard so user can paste in To: field
