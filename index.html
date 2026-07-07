@@ -1837,6 +1837,7 @@ function buildVasteRegels(){
   const onth = fmt(k.ontheffing);
   const transp = fmt(k.transportwagen);
   const kostenAfval = fmt(l.kosten);
+  const afvl = fmt(k.afvalKg)*0.25;
   return [
     pers>0    && {omschrijving:'Personeelskosten ('+l.personen+' pers × '+l.uren+' uur × '+l.dagen+' dagen)', bedrag:String(pers)},
     voorr>0   && {omschrijving:'Voorrijkosten', bedrag:String(voorr)},
@@ -1844,6 +1845,7 @@ function buildVasteRegels(){
     onth>0    && {omschrijving:'Ontheffing/parkeerplekken', bedrag:String(onth)},
     transp>0  && {omschrijving:'Gebruik transportwagen', bedrag:String(transp)},
     kostenAfval>0 && {omschrijving:'Kosten afval grofvuil', bedrag:String(kostenAfval)},
+    afvl>0    && {omschrijving:'Afvalkosten ('+k.afvalKg+' kg)', bedrag:String(afvl)},
   ].filter(Boolean);
 }
 
