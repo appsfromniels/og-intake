@@ -3204,23 +3204,7 @@ function updateTotals(){
 }
 /* ---- SERVICE WORKER (offline cache) ---- */
 if('serviceWorker' in navigator){
-  const swCode = `
-    const CACHE='og-v9';
-    self.addEventListener('install',e=>{self.skipWaiting()});
-    self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim())});
-    self.addEventListener('fetch',e=>{
-      if(e.request.method!=='GET') return;
-      if(!e.request.url.startsWith(self.location.origin)) return;
-      if(e.request.url.startsWith('blob:') || e.request.url.startsWith('data:')) return;
-      e.respondWith(caches.open(CACHE).then(c=>c.match(e.request).then(r=>{
-        if(r) return r;
-        return fetch(e.request).then(res=>{c.put(e.request,res.clone());return res;}).catch(()=>r||new Response('',{status:408}));
-      })));
-    });
-  `;
-  const swBlob = new Blob([swCode], {type:'application/javascript'});
-  const swUrl = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swUrl).catch(()=>{});
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 
 </script>
