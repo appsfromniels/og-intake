@@ -971,12 +971,13 @@ function calcTotalen(){
   const pers=fmt(l.personen)*fmt(l.uren)*fmt(l.dagen)*39.5;
   const voorr=fmt(k.voorrijkosten), matkost=fmt(k.materiaalkosten);
   const onth=fmt(k.ontheffing), transp=fmt(k.transportwagen);
+  const kostenAfval=fmt(l.kosten);
   const afvl=fmt(k.afvalKg)*0.25, min=fmt(k.mindering);
   const naBtw=k.minderingNaBtw;
-  const sub=pers+voorr+matkost+onth+transp+afvl-(naBtw?0:min);
+  const sub=pers+voorr+matkost+onth+transp+kostenAfval+afvl-(naBtw?0:min);
   const btw=sub*0.21;
   const tot=sub*1.21-(naBtw?min:0);
-  return {pers,voorr,matkost,onth,transp,afvl,min,naBtw,sub,btw,tot};
+  return {pers,voorr,matkost,onth,transp,kostenAfval,afvl,min,naBtw,sub,btw,tot};
 }
 function eu(n){ return '\u20ac\u00A0'+n.toFixed(2).replace('.',','); }
 
@@ -1243,6 +1244,11 @@ function renderKosten(){
           <div class="cost-name">Gebruik transportwagen</div>
           <div class="cost-num"><input type="number" value="${esc(k.transportwagen)}" placeholder="€" id="k-transp" oninput="S.kosten.transportwagen=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
           <div class="cost-result"><span id="tot-transp">${eu(T.transp)}</span></div>
+        </div>
+        <div class="cost-row">
+          <div class="cost-name">Kosten afval grofvuil</div>
+          <div class="cost-num"><input type="number" value="${esc(l.kosten)}" placeholder="€" id="k-afval" oninput="S.logistiek.kosten=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
+          <div class="cost-result"><span id="tot-kostenAfval">${eu(T.kostenAfval)}</span></div>
         </div>
       </div>
       <div class="divider"></div>
@@ -1677,6 +1683,8 @@ async function generatePDFBlob(){
   if(T.voorr>0) row('Voorrijkosten', ef(T.voorr));
   if(T.matkost>0) row('Materiaalkosten', ef(T.matkost));
   if(T.onth>0) row('Ontheffing', ef(T.onth));
+  if(T.transp>0) row('Gebruik transportwagen', ef(T.transp));
+  if(T.kostenAfval>0) row('Kosten afval grofvuil', ef(T.kostenAfval));
   if(T.afvl>0) row('Afval', ef(T.afvl));
   if(T.min>0)  row('33% mindering inboedel', '-'+ef(T.min));
   divider();
@@ -1828,12 +1836,14 @@ function buildVasteRegels(){
   const matkost = fmt(k.materiaalkosten);
   const onth = fmt(k.ontheffing);
   const transp = fmt(k.transportwagen);
+  const kostenAfval = fmt(l.kosten);
   return [
     pers>0    && {omschrijving:'Personeelskosten ('+l.personen+' pers × '+l.uren+' uur × '+l.dagen+' dagen)', bedrag:String(pers)},
     voorr>0   && {omschrijving:'Voorrijkosten', bedrag:String(voorr)},
     matkost>0 && {omschrijving:'Materiaalkosten', bedrag:String(matkost)},
     onth>0    && {omschrijving:'Ontheffing/parkeerplekken', bedrag:String(onth)},
     transp>0  && {omschrijving:'Gebruik transportwagen', bedrag:String(transp)},
+    kostenAfval>0 && {omschrijving:'Kosten afval grofvuil', bedrag:String(kostenAfval)},
   ].filter(Boolean);
 }
 
@@ -1856,13 +1866,16 @@ function renderFactuur(){
   initFactuurIfEmpty();
   const f = S.factuur, k = S.kosten, l = S.logistiek;
   const T = calcFactuurTotals();
+  const TK = calcTotalen();
   const ef = n => n>0 ? '\u20ac\u00a0'+n.toFixed(2).replace('.',',') : '';
 
   const vaste = [
-    T.pers>0  && {omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)', bedrag:T.pers},
-    T.voorr>0   && {omschrijving:'Voorrijkosten', bedrag:T.voorr},
-    T.matkost>0 && {omschrijving:'Materiaalkosten', bedrag:T.matkost},
-    T.onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:T.onth},
+    TK.pers>0  && {omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)', bedrag:TK.pers},
+    TK.voorr>0   && {omschrijving:'Voorrijkosten', bedrag:TK.voorr},
+    TK.matkost>0 && {omschrijving:'Materiaalkosten', bedrag:TK.matkost},
+    TK.onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:TK.onth},
+    TK.transp>0 && {omschrijving:'Gebruik transportwagen', bedrag:TK.transp},
+    TK.kostenAfval>0 && {omschrijving:'Kosten afval grofvuil', bedrag:TK.kostenAfval},
   ].filter(Boolean);
 
   return `
@@ -2015,6 +2028,8 @@ async function generateOffertePDF(blobOnly=false){
     (T.voorr>0)   && {omschrijving:'Voorrijkosten', bedrag:T.voorr},
     (T.matkost>0) && {omschrijving:'Materiaalkosten', bedrag:T.matkost},
     (T.onth>0) && {omschrijving:'Ontheffing/parkeerplekken', bedrag:T.onth},
+    (T.transp>0) && {omschrijving:'Gebruik transportwagen', bedrag:T.transp},
+    (T.kostenAfval>0) && {omschrijving:'Kosten afval grofvuil', bedrag:T.kostenAfval},
     (T.afvl>0) && {omschrijving:'Afvalkosten', bedrag:T.afvl},
   ].filter(Boolean);
 
@@ -2234,11 +2249,14 @@ async function generateFactuurPDF(blobOnly=false){
 
   // ── KOSTENREGELS ──
   const l = S.logistiek;
+  const TK = calcTotalen();
   const vaste = [
-    T.pers>0  && {omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)', bedrag:T.pers},
-    T.voorr>0   && {omschrijving:'Voorrijkosten', bedrag:T.voorr},
-    T.matkost>0 && {omschrijving:'Materiaalkosten', bedrag:T.matkost},
-    T.onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:T.onth},
+    TK.pers>0  && {omschrijving:'Personeelskosten ('+l.personen+' pers \u00d7 '+l.uren+' uur \u00d7 '+l.dagen+' dagen)', bedrag:TK.pers},
+    TK.voorr>0   && {omschrijving:'Voorrijkosten', bedrag:TK.voorr},
+    TK.matkost>0 && {omschrijving:'Materiaalkosten', bedrag:TK.matkost},
+    TK.onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:TK.onth},
+    TK.transp>0 && {omschrijving:'Gebruik transportwagen', bedrag:TK.transp},
+    TK.kostenAfval>0 && {omschrijving:'Kosten afval grofvuil', bedrag:TK.kostenAfval},
   ].filter(Boolean);
   const alleRegels = [...vaste, ...(f.regels||[]).filter(r=>r.omschrijving)];
 
@@ -3176,6 +3194,7 @@ function updateTotals(){
     update('tot-matkost', eu(T.matkost));
     update('tot-onth', eu(T.onth));
     update('tot-transp', eu(T.transp));
+    update('tot-kostenAfval', eu(T.kostenAfval));
     update('tot-afvl', eu(T.afvl));
     update('tot-min',  '−'+eu(T.min));
     update('tot-sub',  eu(T.sub));
