@@ -2378,6 +2378,12 @@ async function generateFactuurPDF(blobOnly=false){
   const naam = (k.naam||'factuur').replace(/[^a-z0-9]/gi,'_');
   const filename = 'Factuur_'+f.nummer.replace('/','_')+'_'+naam+'.pdf';
   const blob = doc.output('blob');
+  console.log('Factuur PDF blob size:', blob?.size, 'bytes');
+  if(!blob || blob.size < 1000) {
+    console.error('PDF blob is leeg of te klein!');
+    showToast('Fout: PDF kon niet worden gegenereerd');
+    return null;
+  }
   if(blobOnly) return blob;
   const file = new File([blob], filename, {type:'application/pdf'});
 
