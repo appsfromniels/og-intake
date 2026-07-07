@@ -974,9 +974,10 @@ function calcTotalen(){
   const kostenAfval=fmt(l.kosten);
   const afvl=fmt(k.afvalKg)*0.25, min=fmt(k.mindering);
   const naBtw=k.minderingNaBtw;
-  const sub=pers+voorr+matkost+onth+transp+kostenAfval+afvl-(naBtw?0:min);
+  // Voorkom negatieve totalen
+  const sub=Math.max(0, pers+voorr+matkost+onth+transp+kostenAfval+afvl-(naBtw?0:min));
   const btw=sub*0.21;
-  const tot=sub*1.21-(naBtw?min:0);
+  const tot=Math.max(0, sub*1.21-(naBtw?min:0));
   return {pers,voorr,matkost,onth,transp,kostenAfval,afvl,min,naBtw,sub,btw,tot};
 }
 function eu(n){ return '\u20ac\u00A0'+n.toFixed(2).replace('.',','); }
@@ -1686,7 +1687,7 @@ async function generatePDFBlob(){
   if(T.transp>0) row('Gebruik transportwagen', ef(T.transp));
   if(T.kostenAfval>0) row('Kosten afval grofvuil', ef(T.kostenAfval));
   if(T.afvl>0) row('Afval', ef(T.afvl));
-  if(T.min>0)  row('33% mindering inboedel', '-'+ef(T.min));
+  if(T.min>0)  row('Verrekening inboedel', '-'+ef(T.min));
   divider();
   row('Subtotaal', ef(T.sub));
   row('BTW 21%', ef(T.btw));
@@ -1789,16 +1790,6 @@ function getNextFactuurNummer(){
   return year+'/'+String(n).padStart(4,'0');
 }
 
-function calcFactuurTotals(){
-  const k = S.kosten;
-  const naBtw = k.minderingNaBtw;
-  const verrekening = fmt(k.mindering);
-  const subtotaalExBtw = (S.factuur.regels||[]).reduce((s,r)=>s+fmt(r.bedrag),0) - (naBtw?0:verrekening);
-  const btw = subtotaalExBtw*0.21;
-  const totaal = subtotaalExBtw+btw-(naBtw?verrekening:0);
-  return {subtotaalExBtw,btw,verrekening,naBtw,totaal};
-}
-
 function resetFactuurRegels(){
   S.factuur.regels = buildVasteRegels();
   refresh(); scheduleAutoSave();
@@ -1830,22 +1821,17 @@ function copyBetaalgegevens(){
 }
 
 function buildVasteRegels(){
-  const k=S.kosten, l=S.logistiek;
-  const pers = fmt(l.personen)*fmt(l.uren)*fmt(l.dagen)*39.5;
-  const voorr = fmt(k.voorrijkosten);
-  const matkost = fmt(k.materiaalkosten);
-  const onth = fmt(k.ontheffing);
-  const transp = fmt(k.transportwagen);
-  const kostenAfval = fmt(l.kosten);
-  const afvl = fmt(k.afvalKg)*0.25;
+  // Hergebruik calcTotalen om duplicatie te voorkomen
+  const T = calcTotalen();
+  const l = S.logistiek, k = S.kosten;
   return [
-    pers>0    && {omschrijving:'Personeelskosten ('+l.personen+' pers × '+l.uren+' uur × '+l.dagen+' dagen)', bedrag:String(pers)},
-    voorr>0   && {omschrijving:'Voorrijkosten', bedrag:String(voorr)},
-    matkost>0 && {omschrijving:'Materiaalkosten', bedrag:String(matkost)},
-    onth>0    && {omschrijving:'Ontheffing/parkeerplekken', bedrag:String(onth)},
-    transp>0  && {omschrijving:'Gebruik transportwagen', bedrag:String(transp)},
-    kostenAfval>0 && {omschrijving:'Kosten afval grofvuil', bedrag:String(kostenAfval)},
-    afvl>0    && {omschrijving:'Afvalkosten ('+k.afvalKg+' kg)', bedrag:String(afvl)},
+    T.pers>0       && {omschrijving:'Personeelskosten ('+l.personen+' pers × '+l.uren+' uur × '+l.dagen+' dagen)', bedrag:String(T.pers)},
+    T.voorr>0      && {omschrijving:'Voorrijkosten', bedrag:String(T.voorr)},
+    T.matkost>0    && {omschrijving:'Materiaalkosten', bedrag:String(T.matkost)},
+    T.onth>0       && {omschrijving:'Ontheffing/parkeerplekken', bedrag:String(T.onth)},
+    T.transp>0     && {omschrijving:'Gebruik transportwagen', bedrag:String(T.transp)},
+    T.kostenAfval>0&& {omschrijving:'Kosten afval grofvuil', bedrag:String(T.kostenAfval)},
+    T.afvl>0       && {omschrijving:'Afvalkosten ('+k.afvalKg+' kg)', bedrag:String(T.afvl)},
   ].filter(Boolean);
 }
 
@@ -2022,7 +2008,7 @@ async function generateOffertePDF(blobOnly=false){
     (T.onth>0) && {omschrijving:'Ontheffing/parkeerplekken', bedrag:T.onth},
     (T.transp>0) && {omschrijving:'Gebruik transportwagen', bedrag:T.transp},
     (T.kostenAfval>0) && {omschrijving:'Kosten afval grofvuil', bedrag:T.kostenAfval},
-    (T.afvl>0) && {omschrijving:'Afvalkosten', bedrag:T.afvl},
+    (T.afvl>0) && {omschrijving:'Afvalkosten ('+S.kosten.afvalKg+' kg)', bedrag:T.afvl},
   ].filter(Boolean);
 
   regels.forEach((r,i)=>{
@@ -2065,7 +2051,7 @@ async function generateOffertePDF(blobOnly=false){
   }
 
     const totaalRows = [
-    T.min>0 ? ['33% mindering inboedel','-'+ef(T.min)] : null,
+    T.min>0 ? ['Verrekening inboedel','-'+ef(T.min)] : null,
     ['Subtotaal excl. BTW', ef(T.sub)],
     ['BTW 21%', ef(T.btw)],
     ['__bold__Totaal incl. BTW', ef(T.tot)],
