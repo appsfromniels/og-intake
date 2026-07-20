@@ -1253,9 +1253,9 @@ function renderKosten(){
           <div class="cost-num"><input type="number" value="${esc(l.kosten)}" placeholder="€" id="k-afval" oninput="S.logistiek.kosten=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
           <div class="cost-result"><span id="tot-kostenAfval">${eu(T.kostenAfval)}</span></div>
         </div>
-        ${T.verhuislift>0?`<div class="cost-row">
+        ${S.verhuislift.gebruik?`<div class="cost-row">
           <div class="cost-name">Verhuislift</div>
-          <div class="cost-num"></div>
+          <div class="cost-num"><input type="number" value="${esc(S.verhuislift.bedrag)}" placeholder="€" id="k-verhuislift" oninput="S.verhuislift.bedrag=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
           <div class="cost-result"><span id="tot-verhuislift">${eu(T.verhuislift)}</span></div>
         </div>`:''}
       </div>
