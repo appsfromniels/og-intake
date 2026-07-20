@@ -682,7 +682,7 @@ function emptyState(){
     type: { woning:'', klant:'', extra:[], schoonmaak:'' },
     taken: { meubels:false,vloerdelen:false,vloerbedekking:false,laminaat:false,gordijnen:false,rails:false,tapijttrap:false,lampen:false,schoonmaken:false,gaten:false },
     takenTeksten: { meubels:'Wij verwijderen de meubels en het kleingoed.',vloerdelen:'Vloerdelen of laminaat wordt verwijderd.',vloerbedekking:'Wij verwijderen de vloerbedekking.',laminaat:'Wij verwijderen het laminaat.',gordijnen:'Gordijnen worden verwijderd.',rails:'Gordijnrails worden verwijderd.',tapijttrap:'Tapijt op de trap wordt verwijderd.',lampen:'Lampen worden verwijderd.',schoonmaken:'De woning wordt schoongemaakt.',gaten:'Alle gaten worden gevuld met muurvuller.' },
-    verhuislift: { gebruik:false, dag:'', dagEind:'', uur:'', ontheffing:false },
+    verhuislift: { gebruik:false, dag:'', dagEind:'', uur:'', ontheffing:false, bedrag:'' },
     grofvuil: { straat:false, dag:'', klantrijdt:false },
     logistiek: { personen:'', dagen:'', uren:'', uitvoerdatum:'', uitvoerdatumEind:'', reden:'', kratten:'', m3handel:'', m3grofvuil:'', waarde:'', kosten:'' },
     kosten: { voorrijkosten:'', materiaalkosten:'', ontheffing:'', transportwagen:'', afvalKg:'', mindering:'', minderingNaBtw:false, minder_auto:true },
@@ -967,18 +967,19 @@ function icon(name){
 
 function fmt(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
 function calcTotalen(){
-  const k=S.kosten, l=S.logistiek;
+  const k=S.kosten, l=S.logistiek, v=S.verhuislift;
   const pers=fmt(l.personen)*fmt(l.uren)*fmt(l.dagen)*39.5;
   const voorr=fmt(k.voorrijkosten), matkost=fmt(k.materiaalkosten);
   const onth=fmt(k.ontheffing), transp=fmt(k.transportwagen);
   const kostenAfval=fmt(l.kosten);
+  const verhuislift=v.gebruik?fmt(v.bedrag):0;
   const afvl=fmt(k.afvalKg)*0.25, min=fmt(k.mindering);
   const naBtw=k.minderingNaBtw;
   // Voorkom negatieve totalen
-  const sub=Math.max(0, pers+voorr+matkost+onth+transp+kostenAfval+afvl-(naBtw?0:min));
+  const sub=Math.max(0, pers+voorr+matkost+onth+transp+kostenAfval+verhuislift+afvl-(naBtw?0:min));
   const btw=sub*0.21;
   const tot=Math.max(0, sub*1.21-(naBtw?min:0));
-  return {pers,voorr,matkost,onth,transp,kostenAfval,afvl,min,naBtw,sub,btw,tot};
+  return {pers,voorr,matkost,onth,transp,kostenAfval,verhuislift,afvl,min,naBtw,sub,btw,tot};
 }
 function eu(n){ return '\u20ac\u00A0'+n.toFixed(2).replace('.',','); }
 
@@ -1124,6 +1125,7 @@ function renderKlus(){
         ${fieldEl('Dag (van)', inp('vl-dag',S.verhuislift.dag,'','date'))}
         ${fieldEl('Dag (t/m, optioneel)', inp('vl-dag-end',S.verhuislift.dagEind,'','date'))}
         ${fieldEl('Tijdstip', inp('vl-uur',S.verhuislift.uur,'','time'))}
+        ${fieldEl('Bedrag (€)', inp('vl-bedrag',S.verhuislift.bedrag,'€','number'))}
       </div>
       <div class="field">
         <label>Ontheffing nodig?</label>
@@ -1251,6 +1253,11 @@ function renderKosten(){
           <div class="cost-num"><input type="number" value="${esc(l.kosten)}" placeholder="€" id="k-afval" oninput="S.logistiek.kosten=this.value;updateTotals()" onblur="refresh();scheduleAutoSave()"></div>
           <div class="cost-result"><span id="tot-kostenAfval">${eu(T.kostenAfval)}</span></div>
         </div>
+        ${T.verhuislift>0?`<div class="cost-row">
+          <div class="cost-name">Verhuislift</div>
+          <div class="cost-num"></div>
+          <div class="cost-result"><span id="tot-verhuislift">${eu(T.verhuislift)}</span></div>
+        </div>`:''}
       </div>
       <div class="divider"></div>
       <div class="divider"></div>
@@ -1438,7 +1445,7 @@ function bindInputs(){
     ['l-pers','logistiek.personen'],['l-dag','logistiek.dagen'],['l-uur','logistiek.uren'],
     ['l-kratten','logistiek.kratten'],['l-m3h','logistiek.m3handel'],
     ['l-m3g','logistiek.m3grofvuil'],['l-kost','logistiek.kosten'],
-    ['vl-dag','verhuislift.dag'],['vl-dag-end','verhuislift.dagEind'],['vl-uur','verhuislift.uur'],
+    ['vl-dag','verhuislift.dag'],['vl-dag-end','verhuislift.dagEind'],['vl-uur','verhuislift.uur'],['vl-bedrag','verhuislift.bedrag'],
     ['gv-dag','grofvuil.dag'],['notities','notities']
   ];
   binds.forEach(([id,path])=>{
@@ -1686,6 +1693,7 @@ async function generatePDFBlob(){
   if(T.onth>0) row('Ontheffing', ef(T.onth));
   if(T.transp>0) row('Gebruik transportwagen', ef(T.transp));
   if(T.kostenAfval>0) row('Kosten afval grofvuil', ef(T.kostenAfval));
+  if(T.verhuislift>0) row('Verhuislift', ef(T.verhuislift));
   if(T.afvl>0) row('Afval', ef(T.afvl));
   if(T.min>0)  row('Verrekening inboedel', '-'+ef(T.min));
   divider();
@@ -1831,6 +1839,7 @@ function buildVasteRegels(){
     T.onth>0       && {omschrijving:'Ontheffing/parkeerplekken', bedrag:String(T.onth)},
     T.transp>0     && {omschrijving:'Gebruik transportwagen', bedrag:String(T.transp)},
     T.kostenAfval>0&& {omschrijving:'Kosten afval grofvuil', bedrag:String(T.kostenAfval)},
+    T.verhuislift>0&& {omschrijving:'Verhuislift', bedrag:String(T.verhuislift)},
     T.afvl>0       && {omschrijving:'Afvalkosten ('+k.afvalKg+' kg)', bedrag:String(T.afvl)},
   ].filter(Boolean);
 }
@@ -2008,6 +2017,7 @@ async function generateOffertePDF(blobOnly=false){
     (T.onth>0) && {omschrijving:'Ontheffing/parkeerplekken', bedrag:T.onth},
     (T.transp>0) && {omschrijving:'Gebruik transportwagen', bedrag:T.transp},
     (T.kostenAfval>0) && {omschrijving:'Kosten afval grofvuil', bedrag:T.kostenAfval},
+    (T.verhuislift>0) && {omschrijving:'Verhuislift', bedrag:T.verhuislift},
     (T.afvl>0) && {omschrijving:'Afvalkosten ('+S.kosten.afvalKg+' kg)', bedrag:T.afvl},
   ].filter(Boolean);
 
@@ -2236,6 +2246,7 @@ async function generateFactuurPDF(blobOnly=false){
     TK.onth>0  && {omschrijving:'Ontheffing/parkeerplekken', bedrag:TK.onth},
     TK.transp>0 && {omschrijving:'Gebruik transportwagen', bedrag:TK.transp},
     TK.kostenAfval>0 && {omschrijving:'Kosten afval grofvuil', bedrag:TK.kostenAfval},
+    TK.verhuislift>0 && {omschrijving:'Verhuislift', bedrag:TK.verhuislift},
     TK.afvl>0 && {omschrijving:'Afvalkosten ('+S.kosten.afvalKg+' kg)', bedrag:TK.afvl},
   ].filter(Boolean);
 
