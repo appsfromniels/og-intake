@@ -515,10 +515,22 @@ async function sbFetch(path, options={}){
     ...(accessToken ? {'Authorization': 'Bearer '+accessToken} : {'Authorization': 'Bearer '+SUPABASE_KEY}),
     ...(options.headers||{})
   };
-  const res = await fetch(SUPABASE_URL + path, {...options, headers});
-  const data = await res.json();
-  if(!res.ok) throw new Error(data.error_description || data.message || data.error || 'Request failed');
-  return data;
+  // Timeout van 15 seconden om vastlopen te voorkomen (bijv. Supabase op pauze)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(SUPABASE_URL + path, {...options, headers, signal: controller.signal});
+    clearTimeout(timeoutId);
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error_description || data.message || data.error || 'Request failed');
+    return data;
+  } catch(e){
+    clearTimeout(timeoutId);
+    if(e.name === 'AbortError'){
+      throw new Error('Server reageert niet (mogelijk op pauze). Probeer later opnieuw.');
+    }
+    throw e;
+  }
 }
 
 async function getSession(){
@@ -527,22 +539,57 @@ async function getSession(){
   try {
     const session = JSON.parse(stored);
     if(session.expires_at && Date.now()/1000 > session.expires_at - 60){
-      // Refresh token
-      const data = await sbFetch('/auth/v1/token?grant_type=refresh_token', {
-        method:'POST', body: JSON.stringify({refresh_token: session.refresh_token})
-      });
-      accessToken = data.access_token;
-      localStorage.setItem('og_session', JSON.stringify({...data, expires_at: Date.now()/1000 + data.expires_in}));
-      currentUser = data.user;
-      return data;
+      // Token verlopen - probeer te refreshen als online
+      if(navigator.onLine){
+        try {
+          const data = await sbFetch('/auth/v1/token?grant_type=refresh_token', {
+            method:'POST', body: JSON.stringify({refresh_token: session.refresh_token})
+          });
+          accessToken = data.access_token;
+          localStorage.setItem('og_session', JSON.stringify({...data, expires_at: Date.now()/1000 + data.expires_in}));
+          currentUser = data.user;
+          return data;
+        } catch(refreshErr){
+          // Refresh gefaald maar we hebben een sessie - gebruik die voor offline
+          console.warn('Token refresh failed, using existing session for offline use');
+          accessToken = session.access_token;
+          currentUser = session.user;
+          return session;
+        }
+      } else {
+        // Offline - gebruik bestaande sessie zelfs als verlopen (voor lokale data)
+        accessToken = session.access_token;
+        currentUser = session.user;
+        return session;
+      }
     }
     accessToken = session.access_token;
     currentUser = session.user;
     return session;
-  } catch(e){ localStorage.removeItem('og_session'); return null; }
+  } catch(e){
+    console.error('Session parse error:', e);
+    localStorage.removeItem('og_session');
+    return null;
+  }
 }
 
 async function signIn(email, password){
+  // Als offline, probeer bestaande sessie te gebruiken
+  if(!navigator.onLine){
+    const stored = localStorage.getItem('og_session');
+    if(stored){
+      try {
+        const session = JSON.parse(stored);
+        if(session.user && session.user.email && session.user.email.toLowerCase() === email.toLowerCase()){
+          // Zelfde gebruiker - sta offline login toe
+          accessToken = session.access_token;
+          currentUser = session.user;
+          return session.user;
+        }
+      } catch(e){}
+    }
+    throw new Error('Geen internet. Log eerst online in om offline te kunnen werken.');
+  }
   const data = await sbFetch('/auth/v1/token?grant_type=password', {
     method: 'POST',
     body: JSON.stringify({email, password})
@@ -3117,6 +3164,20 @@ document.addEventListener('DOMContentLoaded', () => {
 /* ---- INIT ---- */
 initSupabase();
 updateOfflineBanner();
+
+// Ping Supabase om project wakker te houden (voorkomt pauze na inactiviteit)
+async function pingSupabase(){
+  if(!navigator.onLine) return;
+  try {
+    await fetch(SUPABASE_URL + '/rest/v1/intakes?select=id&limit=1', {
+      headers: { 'apikey': SUPABASE_KEY }
+    });
+    console.log('Supabase ping OK');
+  } catch(e){
+    console.warn('Supabase ping failed:', e.message);
+  }
+}
+pingSupabase();
 (async () => {
   const session = await getSession();
   if(session) {

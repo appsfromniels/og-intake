@@ -1,4 +1,4 @@
-const CACHE = 'og-v10';
+const CACHE = 'og-v12';
 const PRECACHE = [
   './',
   './index.html'
