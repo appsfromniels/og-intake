@@ -576,7 +576,8 @@ async function getSession(){
 async function signIn(email, password){
   // Als offline, probeer bestaande sessie te gebruiken
   if(!navigator.onLine){
-    const stored = localStorage.getItem('og_session');
+    // Check og_session eerst, dan og_offline_session (bewaard na uitloggen)
+    const stored = localStorage.getItem('og_session') || localStorage.getItem('og_offline_session');
     if(stored){
       try {
         const session = JSON.parse(stored);
@@ -584,6 +585,8 @@ async function signIn(email, password){
           // Zelfde gebruiker - sta offline login toe
           accessToken = session.access_token;
           currentUser = session.user;
+          // Herstel og_session voor normale werking
+          localStorage.setItem('og_session', stored);
           return session.user;
         }
       } catch(e){}
@@ -601,6 +604,10 @@ async function signIn(email, password){
 }
 
 async function signOut(){
+  // Bewaar sessie voor offline login voordat we uitloggen
+  const currentSession = localStorage.getItem('og_session');
+  if(currentSession) localStorage.setItem('og_offline_session', currentSession);
+
   try { await sbFetch('/auth/v1/logout', {method:'POST'}); } catch(e){}
   accessToken = null;
   currentUser = null;
