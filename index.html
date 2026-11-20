@@ -416,7 +416,9 @@ td input:focus{border-color:var(--g500)}
         <label>Wachtwoord</label>
         <div style="position:relative">
           <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" style="padding-right:40px">
-          <button type="button" onclick="togglePasswordVisibility()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--muted);font-size:18px" aria-label="Wachtwoord weergeven">👁️</button>
+          <button type="button" id="toggle-pwd-btn" onclick="togglePasswordVisibility()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--muted)" aria-label="Wachtwoord weergeven">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
         </div>
       </div>
       <button class="login-btn" id="login-btn" onclick="doLogin()">Inloggen</button>
@@ -424,6 +426,14 @@ td input:focus{border-color:var(--g500)}
       <button onclick="resetPassword()" style="background:none;border:none;color:var(--g600);font-size:13px;cursor:pointer;margin-top:12px;text-decoration:underline">Wachtwoord vergeten?</button>
       <button onclick="clearAppCache()" style="background:none;border:none;color:#999;font-size:11px;cursor:pointer;margin-top:4px">Cache wissen (bij problemen)</button>
     </div>
+  </div>
+</div>
+<div id="jaar-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:12px;padding:24px;max-width:400px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
+    <div style="font-size:18px;font-weight:700;color:var(--g700);margin-bottom:8px">Welk jaar downloaden?</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Selecteer een jaar of download alles</div>
+    <div id="jaar-options" style="display:flex;flex-direction:column;gap:8px"></div>
+    <button onclick="closeJaarModal()" style="width:100%;padding:12px;background:var(--border);border:none;border-radius:var(--rs);font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;margin-top:12px">Annuleren</button>
   </div>
 </div>
 <div class="offline-banner" id="offline-banner">⚡ Geen internet — wijzigingen worden opgeslagen zodra je weer online bent</div>
@@ -2741,25 +2751,30 @@ function selectFactuurJaar(){
     return;
   }
 
-  // Build options
-  let options = 'Welk jaar?\n\n';
-  options += '0: Alles ('+metFactuur.length+' facturen)\n';
-  jaren.forEach((jaar,i)=>{
+  // Build options HTML
+  const optionsContainer = document.getElementById('jaar-options');
+  let html = `<button onclick="downloadAlleFacturen(null);closeJaarModal()" style="width:100%;padding:14px;background:var(--g400);color:#fff;border:none;border-radius:var(--rs);font-size:15px;font-weight:600;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center">
+    <span>Alles</span>
+    <span style="opacity:0.8;font-size:13px">${metFactuur.length} facturen</span>
+  </button>`;
+
+  jaren.forEach(jaar=>{
     const count = metFactuur.filter(f=>f.factuurMeta.datum?.startsWith(jaar)).length;
-    options += `${i+1}: ${jaar} (${count} facturen)\n`;
+    html += `<button onclick="downloadAlleFacturen('${jaar}');closeJaarModal()" style="width:100%;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);font-size:15px;font-weight:600;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center">
+      <span>${jaar}</span>
+      <span style="color:var(--muted);font-size:13px">${count} facturen</span>
+    </button>`;
   });
 
-  const keuze = prompt(options);
-  if(keuze === null) return; // Cancelled
+  optionsContainer.innerHTML = html;
 
-  const num = parseInt(keuze);
-  if(num === 0){
-    downloadAlleFacturen(null);
-  } else if(num > 0 && num <= jaren.length){
-    downloadAlleFacturen(jaren[num-1]);
-  } else {
-    showToast('Ongeldige keuze');
-  }
+  // Show modal
+  const modal = document.getElementById('jaar-modal');
+  modal.style.display = 'flex';
+}
+
+function closeJaarModal(){
+  document.getElementById('jaar-modal').style.display = 'none';
 }
 
 async function downloadAlleFacturen(jaar = null){
@@ -3270,13 +3285,13 @@ window.addEventListener('offline', () => {
 
 function togglePasswordVisibility(){
   const input = document.getElementById('login-password');
-  const btn = event.target;
+  const btn = document.getElementById('toggle-pwd-btn');
   if(input.type === 'password'){
     input.type = 'text';
-    btn.textContent = '🙈';
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
   } else {
     input.type = 'password';
-    btn.textContent = '👁️';
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   }
 }
 
