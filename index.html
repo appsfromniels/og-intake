@@ -414,11 +414,15 @@ td input:focus{border-color:var(--g500)}
       </div>
       <div class="field">
         <label>Wachtwoord</label>
-        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+        <div style="position:relative">
+          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" style="padding-right:40px">
+          <button type="button" onclick="togglePasswordVisibility()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--muted);font-size:18px" aria-label="Wachtwoord weergeven">👁️</button>
+        </div>
       </div>
       <button class="login-btn" id="login-btn" onclick="doLogin()">Inloggen</button>
       <div class="login-err" id="login-err"></div>
       <button onclick="resetPassword()" style="background:none;border:none;color:var(--g600);font-size:13px;cursor:pointer;margin-top:12px;text-decoration:underline">Wachtwoord vergeten?</button>
+      <button onclick="clearAppCache()" style="background:none;border:none;color:#999;font-size:11px;cursor:pointer;margin-top:4px">Cache wissen (bij problemen)</button>
     </div>
   </div>
 </div>
@@ -674,6 +678,29 @@ async function resetPassword(){
     }
   } catch(e){
     showToast('Fout bij versturen reset-link');
+  }
+}
+
+async function clearAppCache(){
+  if(!confirm('Cache en app-data wissen? Je moet opnieuw inloggen.')){
+    return;
+  }
+  try {
+    // Clear all caches
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map(name => caches.delete(name)));
+
+    // Unregister service worker
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(r => r.unregister()));
+
+    // Clear localStorage
+    localStorage.clear();
+
+    showToast('Cache gewist. App wordt herladen...');
+    setTimeout(() => window.location.reload(true), 1000);
+  } catch(e){
+    showToast('Fout bij cache wissen: ' + e.message);
   }
 }
 
@@ -2701,6 +2728,72 @@ async function downloadFactuur(id, event){
   showToast('Factuur gedownload');
 }
 
+async function downloadAlleFacturen(){
+  const idx = getIndex();
+  const metFactuur = idx.filter(i=>i.factuurMeta);
+  if(metFactuur.length===0){ showToast('Geen facturen om te downloaden'); return; }
+
+  showToast(`Facturen voorbereiden... (0/${metFactuur.length})`);
+
+  // Load libraries
+  if(!window.jspdf||!window.QRCode||!window.JSZip){
+    await Promise.all([
+      !window.jspdf  ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js') : Promise.resolve(),
+      !window.QRCode ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js') : Promise.resolve(),
+      !window.JSZip  ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js') : Promise.resolve(),
+    ]);
+  }
+
+  const zip = new JSZip();
+  const prevS = JSON.parse(JSON.stringify(S));
+  const prevId = APP.id;
+
+  for(let i=0; i<metFactuur.length; i++){
+    const item = metFactuur[i];
+    showToast(`Factuur ${i+1}/${metFactuur.length} genereren...`);
+
+    const data = loadIntakeFromStorage(item.id);
+    if(!data) continue;
+
+    // Swap state
+    Object.assign(S, data);
+    APP.id = item.id;
+
+    // Generate PDF
+    const blob = await generateFactuurPDF(true);
+    if(!blob) continue;
+
+    // Add to zip
+    const naam = (data.klant?.naam||'factuur').replace(/[^a-z0-9]/gi,'_');
+    const nr = (data.factuur?.nummer||'').replace('/','_');
+    const filename = 'Factuur_'+nr+'_'+naam+'.pdf';
+    zip.file(filename, blob);
+  }
+
+  // Restore state
+  Object.assign(S, prevS);
+  APP.id = prevId;
+
+  showToast('ZIP bestand aanmaken...');
+  const zipBlob = await zip.generateAsync({type:'blob'});
+
+  // Download zip
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2,'0');
+  const mm = String(today.getMonth()+1).padStart(2,'0');
+  const yyyy = today.getFullYear();
+  const zipName = `facturen_backup_${dd}${mm}${yyyy}.zip`;
+
+  const url = URL.createObjectURL(zipBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = zipName;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+  showToast(`${metFactuur.length} facturen gedownload`);
+}
+
 function toggleBetaald(id, event){
   event.stopPropagation();
   const idx = getIndex();
@@ -2760,10 +2853,13 @@ function renderFacturen(){
 
   document.getElementById('main-content').innerHTML=`
     <div style="background:#fff;border-bottom:1px solid var(--border);padding:calc(env(safe-area-inset-top,0px)+14px) 16px 0">
-      <button class="planning-back" onclick="APP.view='home';refresh()">
-        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-        Facturen
-      </button>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <button class="planning-back" onclick="APP.view='home';refresh()">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          Facturen
+        </button>
+        ${metFactuur.length>0?`<button onclick="downloadAlleFacturen()" style="background:var(--g400);color:#fff;border:none;border-radius:var(--rs);padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px" title="Download alle facturen">Download alle</button>`:''}
+      </div>
     </div>
     ${metFactuur.length>0?`
     <div style="display:flex;gap:8px;margin:12px 16px 0">
@@ -3127,6 +3223,18 @@ window.addEventListener('offline', () => {
   if(img) img.src = LOGO_SRC;
 })();
 
+function togglePasswordVisibility(){
+  const input = document.getElementById('login-password');
+  const btn = event.target;
+  if(input.type === 'password'){
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁️';
+  }
+}
+
 async function doLogin(){
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -3152,7 +3260,11 @@ async function doLogin(){
     }
   } catch(e) {
     console.error('Login error:', e);
-    err.textContent = 'Fout: ' + JSON.stringify(e.message || e);
+    let msg = e.message || 'Onbekende fout';
+    if(msg.includes('fetch') || msg.includes('Failed to fetch')){
+      msg = 'Netwerk fout. Probeer: 1) Cache wissen hieronder 2) Andere netwerk 3) Herinstalleer app';
+    }
+    err.textContent = 'Fout: ' + msg;
     btn.disabled = false;
     btn.textContent = 'Inloggen';
   }
@@ -3184,7 +3296,9 @@ async function pingSupabase(){
     console.warn('Supabase ping failed:', e.message);
   }
 }
+// Ping nu en dan elke 6 dagen (518400000ms)
 pingSupabase();
+setInterval(pingSupabase, 518400000);
 (async () => {
   const session = await getSession();
   if(session) {
