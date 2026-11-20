@@ -953,8 +953,8 @@ function renderHome(){
         return `
       <div class="intake-item" onclick="openIntake('${item.id}')">
         <div class="intake-info">
-          <div class="intake-naam">${item.naam||'Naamloos'}</div>
-          <div class="intake-meta">${[item.adres, item.datum?fmtDate(item.datum):''].filter(Boolean).join(' · ')||'Geen datum'}</div>
+          <div class="intake-naam">${esc(item.naam||'Naamloos')}</div>
+          <div class="intake-meta">${esc([item.adres, item.datum?fmtDate(item.datum):''].filter(Boolean).join(' · '))||'Geen datum'}</div>
         </div>
         <span class="status-badge" style="background:${st.bg};color:${st.color};flex-shrink:0">${st.label}</span>
         <button onclick="confirmDelete('${item.id}',event)" style="background:none;border:none;padding:8px 6px;cursor:pointer;color:var(--muted);flex-shrink:0">
@@ -1017,7 +1017,7 @@ function renderFormHeader(){
       <button class="back-btn" onclick="goHome()">
         <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <span class="form-title">${naam}</span>
+      <span class="form-title">${esc(naam)}</span>
       <span class="autosave-dot" id="save-dot"></span>
 
     </div>
@@ -1073,6 +1073,7 @@ function calcTotalen(){
   return {pers,voorr,matkost,onth,transp,kostenAfval,verhuislift,afvl,min,naBtw,sub,btw,tot};
 }
 function eu(n){ return '\u20ac\u00A0'+n.toFixed(2).replace('.',','); }
+function esc(str){ if(!str) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 function calcUren(p){
   if(!p.begin||!p.eind) return null;
@@ -1090,7 +1091,6 @@ function fieldEl(label, inputHtml){ return `<div class="field"><label>${label}</
 function inp(id, val, ph, type='text', extra=''){
   return `<input id="${id}" type="${type}" value="${esc(val)}" placeholder="${ph}" ${extra}>`;
 }
-function esc(s){ return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
 /* ---- TAB RENDERS ---- */
 function renderKlant(){
@@ -2006,7 +2006,7 @@ function renderFactuur(){
   <div class="card">
     ${cardH('info','Afsluitingstekst')}
     <div class="card-body">
-      ${fieldEl('', '<textarea id="f-afsluiting" rows="3" style="font-size:13px" onblur="S.factuur.afsluitingszin=this.value;scheduleAutoSave()">'+(f.afsluitingszin||'Met hartelijke groet,\nFrank van Haaren, Robin van de Water')+'</textarea>')}
+      ${fieldEl('', '<textarea id="f-afsluiting" rows="3" style="font-size:13px" onblur="S.factuur.afsluitingszin=this.value;scheduleAutoSave()">'+esc(f.afsluitingszin||'Met hartelijke groet,\nFrank van Haaren, Robin van de Water')+'</textarea>')}
     </div>
   </div>
 
@@ -2673,8 +2673,8 @@ function renderArchief(){
       return `
       <div class="intake-item" style="opacity:0.8" onclick="openIntake('${item.id}')">
         <div class="intake-info">
-          <div class="intake-naam">${item.naam||'Naamloos'}</div>
-          <div class="intake-meta">${[item.adres, item.datum?fmtDate(item.datum):''].filter(Boolean).join(' · ')||'Geen datum'}</div>
+          <div class="intake-naam">${esc(item.naam||'Naamloos')}</div>
+          <div class="intake-meta">${esc([item.adres, item.datum?fmtDate(item.datum):''].filter(Boolean).join(' · '))||'Geen datum'}</div>
         </div>
         <button onclick="restoreIntake('${item.id}',event)" style="background:#10b981;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;color:#fff;font-size:11px;font-weight:500;flex-shrink:0;margin-right:4px">
           Herstel
@@ -2898,8 +2898,8 @@ function renderFacturen(){
       }
       itemsHtml += `<div class="factuur-item" onclick="openIntake('${item.id}')">
           <div class="factuur-item-info">
-            <div class="factuur-item-naam">${item.naam||'Naamloos'}</div>
-            <div class="factuur-item-meta">${m.nummer||''} &middot; ${fmtD(m.datum)} &middot; ${ef(m.bedrag||0)}</div>
+            <div class="factuur-item-naam">${esc(item.naam||'Naamloos')}</div>
+            <div class="factuur-item-meta">${esc(m.nummer||'')} &middot; ${fmtD(m.datum)} &middot; ${ef(m.bedrag||0)}</div>
           </div>
           <button class="betaal-toggle ${betaald?'paid':'open'}" onclick="toggleBetaald('${item.id}',event)">
             ${betaald?'&#10003; Betaald':'Openstaand'}
@@ -3015,7 +3015,7 @@ function renderOffertes(){
       }
       itemsHtml += '<div class="factuur-item" onclick="openIntake(\''+item.id+'\')">'+
           '<div class="factuur-item-info">'+
-            '<div class="factuur-item-naam">'+(item.naam||'Naamloos')+'</div>'+
+            '<div class="factuur-item-naam">'+esc(item.naam||'Naamloos')+'</div>'+
             '<div class="factuur-item-meta">'+fmtD(datum)+' &middot; '+ef(totaal)+'</div>'+
           '</div>'+
           '<span class="status-badge" style="background:'+st.bg+';color:'+st.color+';flex-shrink:0;font-size:10px;padding:4px 8px">'+st.label+'</span>'+
@@ -3096,8 +3096,8 @@ function renderPlanning(){
           <div class="planning-weekday">${DAYS[item.d.getDay()]}</div>
         </div>
         <div class="planning-info">
-          <div class="planning-naam">${item.naam||'Naamloos'}</div>
-          <div class="planning-adres">${item.adres||''}</div>
+          <div class="planning-naam">${esc(item.naam||'Naamloos')}</div>
+          <div class="planning-adres">${esc(item.adres||'')}</div>
         </div>
         <span class="status-badge" style="background:${st.bg};color:${st.color};flex-shrink:0">${st.label}</span>
       </div>`;
@@ -3112,8 +3112,8 @@ function renderPlanning(){
         return `<div class="planning-item" onclick="openIntake('${item.id}')">
           <div class="planning-date"><div class="planning-day" style="font-size:13px;color:var(--muted)">—</div></div>
           <div class="planning-info">
-            <div class="planning-naam">${item.naam||'Naamloos'}</div>
-            <div class="planning-adres">${item.adres||''}</div>
+            <div class="planning-naam">${esc(item.naam||'Naamloos')}</div>
+            <div class="planning-adres">${esc(item.adres||'')}</div>
           </div>
           <span class="status-badge" style="background:${st.bg};color:${st.color};flex-shrink:0">${st.label}</span>
         </div>`;
@@ -3238,7 +3238,7 @@ function showEmailToast(email){
   const banner=document.createElement('div');
   banner.id='email-banner';
   banner.style.cssText='position:fixed;bottom:calc(env(safe-area-inset-bottom,0px)+80px);left:16px;right:16px;background:#1a1a1a;color:#fff;border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:500;box-shadow:0 4px 16px rgba(0,0,0,0.3)';
-  banner.innerHTML=`<div style="font-size:13px;line-height:1.4"><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">E-mailadres gekopieerd \u2713</div><div style="font-weight:500">${email}</div></div><button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;color:#fff;padding:6px 12px;font-size:12px;cursor:pointer">Sluiten</button>`;
+  banner.innerHTML=`<div style="font-size:13px;line-height:1.4"><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">E-mailadres gekopieerd \u2713</div><div style="font-weight:500">${esc(email)}</div></div><button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;color:#fff;padding:6px 12px;font-size:12px;cursor:pointer">Sluiten</button>`;
   document.body.appendChild(banner);
   setTimeout(()=>{ if(banner.parentElement) banner.remove(); },8000);
 }
